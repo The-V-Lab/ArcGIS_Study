@@ -1,0 +1,992 @@
+---
+title: "ArcGIS 系统入门"
+pagetitle: "ArcGIS 系统入门 | The V Lab"
+subtitle: "从空间思维、数据与坐标系，到制图、空间分析和 Web 分享"
+author: "The V Lab 地理信息系统学习模块"
+date: "更新于 `r format(Sys.Date(), '%Y年%m月%d日')`"
+lang: zh-CN
+output:
+  html_document:
+    self_contained: true
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+      print: true
+    number_sections: true
+    anchor_sections: true
+    code_folding: show
+    code_download: false
+    fig_caption: true
+    df_print: kable
+    math_method: mathml
+    css: styles.css
+    includes:
+      before_body: includes/vlab-brand.html
+---
+
+```{r arcgis-setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 8,
+  fig.height = 5.4,
+  fig.retina = 2,
+  out.width = "100%",
+  dev = "png"
+)
+options(stringsAsFactors = FALSE, digits = 3, width = 88)
+
+# 固定、虚构的教学数据；单位可理解为千米。
+set.seed(20260908)
+neighbourhoods <- expand.grid(col = 0:3, row = 0:2)
+neighbourhoods$id <- sprintf("N%02d", seq_len(nrow(neighbourhoods)))
+neighbourhoods$x <- neighbourhoods$col + 0.5
+neighbourhoods$y <- neighbourhoods$row + 0.5
+neighbourhoods$population <- sample(seq(1200, 4800, by = 100),
+                                    nrow(neighbourhoods), replace = TRUE)
+services <- data.frame(
+  id = c("S01", "S02", "S03"),
+  x = c(0.8, 2.2, 3.4),
+  y = c(0.7, 2.1, 0.8)
+)
+distance_matrix <- outer(
+  seq_len(nrow(neighbourhoods)),
+  seq_len(nrow(services)),
+  Vectorize(function(i, j) {
+    sqrt((neighbourhoods$x[i] - services$x[j])^2 +
+           (neighbourhoods$y[i] - services$y[j])^2)
+  })
+)
+neighbourhoods$nearest_km <- apply(distance_matrix, 1, min)
+neighbourhoods$within_1km <- neighbourhoods$nearest_km <= 1
+```
+
+<nav class="language-switch" aria-label="语言选择">
+  <span class="language-home">ArcGIS 入门课程</span>
+  <span class="active" aria-current="page">中文</span>
+  <a href="arcgis_getting_started_en.html" lang="en">English</a>
+</nav>
+
+<div class="module-bar">
+  <div class="module-stat"><strong>适用对象</strong><span>零 GIS 基础的学生、研究人员与业务分析人员</span></div>
+  <div class="module-stat"><strong>学习时长</strong><span>约 150–210 分钟，可分章节完成</span></div>
+  <div class="module-stat"><strong>先修要求</strong><span>基本文件与表格操作；无需编程基础</span></div>
+</div>
+
+<div class="callout note">
+<span class="callout-title">软件范围与版本说明</span>
+本教程把 <strong>ArcGIS Pro 3.x</strong> 作为桌面主线，并介绍 ArcGIS Online 的 Web 地图与分享流程。ArcGIS Pro 运行于 Windows；macOS 学习者可使用单位提供的远程 Windows、虚拟机，或先完成浏览器中的 ArcGIS Online 部分。界面名称、可用工具、扩展、用户类型和分享权限会随版本与组织配置变化，请使用与本机版本匹配的官方帮助。本页可在没有 ArcGIS 和账号的环境中阅读；ArcPy 示例只展示，不在 R Markdown 渲染时执行。
+</div>
+
+## 如何使用本教程 {-}
+
+ArcGIS 不是一串按钮。稳定的工作方法是先把问题、数据、空间参考、分析假设和输出受众连成一条可检查的链：
+
+<div class="workflow" aria-label="从空间问题到分享地图的八步工作流">
+  <div class="workflow-step"><strong>1 · 提问</strong><small>对象、区域、时间和决策是什么？</small></div>
+  <div class="workflow-step"><strong>2 · 查数据</strong><small>来源、字段、尺度、许可是否合适？</small></div>
+  <div class="workflow-step"><strong>3 · 定坐标系</strong><small>位置、距离和面积单位是否正确？</small></div>
+  <div class="workflow-step"><strong>4 · 浏览制图</strong><small>先发现异常，再选择表达方式。</small></div>
+  <div class="workflow-step"><strong>5 · 查询分析</strong><small>选择、连接与地理处理回答问题。</small></div>
+  <div class="workflow-step"><strong>6 · 验证</strong><small>核对数量、范围、单位和边界案例。</small></div>
+  <div class="workflow-step"><strong>7 · 沟通</strong><small>布局、图例、来源和限制服务受众。</small></div>
+  <div class="workflow-step"><strong>8 · 分享</strong><small>权限、隐私、依赖图层与元数据一起检查。</small></div>
+</div>
+
+贯穿案例是完全虚构的“社区公共服务覆盖”练习：有社区面、服务设施点和人口属性，要识别距离任一设施 **1 千米直线距离**之外的潜在缺口。它适合练习投影、缓冲区、空间连接、制图和质量控制，但绝不能被解释为真实的出行可达性或选址结论。
+
+### 学习目标 {-}
+
+完成后，你应能够：
+
+- 用“几何 + 属性 + 空间参考 + 元数据”解释一个空间数据集；
+- 区分项目、地图、图层、数据集、布局、项目项、Web 图层和 Web 地图；
+- 在 ArcGIS Pro 中创建项目、连接文件夹、添加和检查数据；
+- 判断点、线、面、栅格和非空间表适合的问题；
+- 区分地理坐标系与投影坐标系，以及 **Define Projection** 与 **Project**；
+- 使用符号、标注、弹窗和可见比例尺制作可信地图；
+- 正确选择属性查询、空间选择、属性连接与空间连接；
+- 运行并验证 Buffer、Clip、Dissolve、Spatial Join 等基础工具；
+- 组织编辑、输出、历史记录和元数据，使流程可以重做；
+- 导出地图布局，并在 ArcGIS Online 中按正确受众安全分享。
+
+# GIS 与 ArcGIS 全景
+
+## GIS 回答的不是“画什么”，而是“空间上发生了什么”
+
+GIS（Geographic Information System，地理信息系统）把位置与描述信息联系起来。常见问题包括：
+
+| 问题类型 | 例子 | 常见操作 |
+|---|---|---|
+| 哪里有什么？ | 哪些社区有服务点？ | 浏览、识别、属性查询 |
+| 什么在附近？ | 住宅距公交站是否在 500 米内？ | Buffer、Near、网络分析 |
+| 什么重叠？ | 哪些地块位于洪泛区？ | Select By Location、Intersect |
+| 如何分布？ | 发病率是否呈空间聚集？ | 分级设色、密度、空间统计 |
+| 发生了什么变化？ | 2015–2025 年土地覆盖如何变化？ | 时间筛选、栅格比较 |
+| 如何到达？ | 哪条路线最快、服务区覆盖谁？ | Network Analyst（通常需相应许可） |
+
+地图是分析和沟通的界面，不是事实本身。一个漂亮的热点可能来自人口分布、分类方法、缺失数据或边界选择；空间共现也不自动证明因果关系。
+
+## ArcGIS 生态系统
+
+| 组件 | 主要用途 | 初学者在本教程中的位置 |
+|---|---|---|
+| **ArcGIS Pro** | Windows 桌面制图、编辑、二维/三维分析与发布 | 主线：本地数据、分析、布局 |
+| **ArcGIS Online** | Esri 托管的内容、图层、Web 地图、应用与协作 | 主线：浏览器制图与分享 |
+| **ArcGIS Enterprise** | 由组织自行管理的门户、服务器和数据存储 | 理解概念；具体流程由管理员配置 |
+| **Living Atlas** | 可搜索的全球权威与社区内容目录 | 数据发现；仍须检查来源和适用性 |
+| **Field Maps / Survey123** | 移动采集、检查与表单工作流 | 后续方向 |
+| **Dashboards / StoryMaps / Instant Apps** | 面向受众的监测、叙事和轻量应用 | 在 Web 地图完成后继续 |
+| **ModelBuilder / ArcPy / Notebooks** | 可视化模型、Python 自动化与可重复分析 | 本教程末尾入门 |
+
+两条对象链很重要：
+
+> **桌面：项目（.aprx） → 地图/场景 → 图层 → 数据源**
+
+> **Web：组织 → 项目项（item） → Web 图层 → Web 地图 → 应用**
+
+<div class="callout pitfall">
+<span class="callout-title">项目和图层通常不是数据备份</span>
+`.aprx` 保存地图、布局、连接和设置，但大多数源数据仍在 geodatabase、文件夹、数据库或服务中。图层通常引用数据源并保存显示、筛选和弹窗设置。从地图移除图层通常不删除数据；移动或重命名源文件却可能造成断链。
+</div>
+
+# ArcGIS Pro 项目与界面
+
+## 开始前的现实检查
+
+1. 确认 ArcGIS Pro 版本、许可等级、已授权扩展和活动门户。
+2. 确认项目所在磁盘有写入权限；避免把工作数据直接放在邮件附件或临时下载目录。
+3. 团队项目先约定坐标系、唯一标识、目录、输出命名和谁可以编辑。
+4. 在线工具、地理编码、托管存储等可能消耗组织 credits；运行前查看预计用量和管理员规则。
+
+官方的 [ArcGIS Pro 快速入门教程](https://pro.arcgis.com/en/pro-app/latest/get-started/pro-quickstart-tutorials.htm) 会随版本更新。按钮位置若与本页略有差异，优先查与你的软件版本一致的帮助。
+
+## 项目中有哪些东西
+
+新建 **Map** 项目后通常会看到：
+
+| 对象 | 典型形式 | 作用 |
+|---|---|---|
+| 项目文件 | `Community_Access.aprx` | 保存项目内容、地图、布局和连接 |
+| 主文件夹 | 项目同名文件夹 | 放 README、导出图、脚本和外部数据 |
+| 默认 geodatabase | `Community_Access.gdb` | 多数地理处理工具的默认输出位置 |
+| 默认 toolbox | `Community_Access.atbx` | 保存模型与自定义工具 |
+| 地图 | Map | 图层组合、坐标系、书签和显示设置 |
+| 布局 | Layout | 纸张/页面上的地图框、标题、图例等 |
+
+推荐的学习目录如下；`data_raw` 保持只读，处理结果写入 geodatabase 或 `outputs`：
+
+```text
+Community_Access/
+├── Community_Access.aprx
+├── Community_Access.gdb/
+├── data_raw/
+├── data_working/
+├── outputs/
+├── maps/
+├── scripts/
+└── docs/README.md
+```
+
+## 六个高频界面区域
+
+- **Ribbon（功能区）：**按 Map、Insert、Analysis、Edit、Share 等任务组织；选择不同对象时会出现上下文选项卡。
+- **Contents pane（内容窗格）：**控制图层顺序、可见性、选择状态和符号。
+- **Catalog pane/view（目录窗格/视图）：**浏览项目、文件夹、数据库、工具箱、服务器和 Portal 内容。
+- **Map view（地图视图）：**平移、缩放、选择、编辑和检查要素。
+- **Geoprocessing pane（地理处理窗格）：**搜索工具、填写参数、设置环境、阅读消息。
+- **Attribute table（属性表）：**每行通常对应一个要素，每列是一个字段；Shape 字段保存几何。
+
+### 第一个操作练习
+
+1. 启动 ArcGIS Pro，选择 **New Project → Map**。
+2. 项目命名为 `Community_Access`，选择稳定且路径较短的位置。
+3. 在 Catalog 中展开 **Databases** 和 **Toolboxes**，确认默认 `.gdb` 与 `.atbx`。
+4. 通过 **Folders → Add Folder Connection** 连接 `data_raw`。
+5. 在 Contents 中右键 Map → **Properties → Coordinate Systems**，记录当前地图坐标系。
+6. 保存项目。注意：保存项目与保存/放弃编辑是两个不同动作。
+
+<div class="callout tip">
+<span class="callout-title">可审计命名</span>
+输出名写出“对象 + 操作 + 范围/距离 + 版本”，例如 `Service_Buffer_1km_v01`、`Neighbourhood_Access_2026Q3`。不要把最终结果留成 `Buffer1`、`SpatialJoin3`。
+</div>
+
+# 空间数据的基本模型
+
+## 四个组成部分
+
+可以把任何空间数据先拆成四部分：
+
+1. **几何（geometry）：**位置和形状；
+2. **属性（attributes）：**名称、类型、人口、日期等描述；
+3. **空间参考（spatial reference）：**坐标如何对应地球，以及单位是什么；
+4. **元数据（metadata）：**谁、何时、如何创建，精度、限制、许可和更新周期。
+
+缺少任何一项都会限制解释。坐标精确到小数点后很多位不代表采集准确；最新下载日期也不代表数据内容最新。
+
+## 矢量、栅格与表
+
+| 数据模型 | 结构 | 适合表示 | 初学者提醒 |
+|---|---|---|---|
+| 点 | 单个坐标位置 | 设施、采样点、事件 | 地图比例尺变大后，真实对象未必真是“零面积” |
+| 线 | 有顺序的顶点 | 道路、河流、管线 | 长度依赖坐标系，网络连通性需额外规则 |
+| 面 | 闭合边界 | 社区、湖泊、地块 | 边界来源和尺度会影响面积与叠加 |
+| 栅格 | 规则像元网格 | 高程、影像、温度、土地覆盖 | 分辨率、范围、NoData 和重采样方式都重要 |
+| 非空间表 | 行与字段 | 人口、调查、代码表 | 可借助唯一键连接，或用 X/Y 生成事件点 |
+
+选择模型要服务问题：监测站可用点，河道用线，行政区用面，连续高程通常用栅格。同一现实对象在不同尺度下可能使用不同表示。
+
+## 数据集、feature class 与图层
+
+- **Feature（要素）：**一个具体空间对象，例如一个服务点。
+- **Feature class（要素类）：**具有相同几何类型和字段结构的一组要素。
+- **Dataset（数据集）：**广义的数据存储对象，可能是要素类、栅格或表。
+- **Layer（图层）：**对数据源的引用，并携带符号、筛选、标注、弹窗和可见范围。
+- **Map（地图）：**按顺序组合多个图层的工作空间。
+- **Layout（布局）：**为屏幕、打印或 PDF 组织地图框和页面元素。
+
+## 常见格式
+
+| 格式 | 优点 | 局限/注意 | 建议用途 |
+|---|---|---|---|
+| File geodatabase `.gdb` | ArcGIS 原生；字段、长名称、规则和多种数据集支持好 | 实际是一个文件夹，不能手动改内部文件 | 日常编辑与分析输出首选 |
+| Shapefile `.shp` | 跨软件兼容、历史悠久 | 多文件组成，字段名和类型受限，功能较少 | 交换旧系统数据，不作为复杂主库 |
+| GeoPackage `.gpkg` | 单文件、开放格式、可含多个表/图层 | 某些高级 geodatabase 行为不适用 | 跨平台交换与轻量项目 |
+| CSV | 简单、通用、便于检查 | 无原生几何/坐标系，字段类型易被误判 | 表格交换或 X/Y 点源 |
+| GeoJSON | Web 友好、文本可读 | 大数据效率与高级规则有限 | Web/开发交换 |
+| GeoTIFF | 可携带地理参考的栅格 | 文件可能很大；需检查像元和 NoData | 影像、连续表面 |
+| Hosted feature layer | 浏览器和多应用可访问，可查询/编辑 | 权限、存储、依赖、credits 和网络需管理 | 协作、Web 地图与应用 |
+
+Esri 将 geodatabase 作为 ArcGIS 中组织和管理地理数据的原生结构；File geodatabase 是磁盘上的文件集合。不要用 Finder/资源管理器进入 `.gdb` 删除或重命名内部文件，应通过 ArcGIS 的 Catalog 管理。
+
+## 数据接收时的六问
+
+<ol class="checklist">
+  <li>来源是谁，是否为本任务的权威来源？</li>
+  <li>内容代表哪个时间点/时间段，多久更新一次？</li>
+  <li>空间尺度、分辨率和采集精度是否支持问题？</li>
+  <li>坐标系、单位、字段定义和缺失值代码是什么？</li>
+  <li>是否存在稳定唯一键、重复记录或一对多关系？</li>
+  <li>许可、署名、隐私和再分享条件是什么？</li>
+</ol>
+
+# 坐标系与投影
+
+## 为什么“看起来重叠”还不够
+
+空间坐标只有配合坐标系才有意义。经纬度常以角度表示；本地投影坐标通常以米或英尺表示。ArcGIS Pro 可以把图层**动态投影（on-the-fly）**到地图坐标系，因此不同坐标系的图层可能在屏幕上重叠，但这不保证用原始坐标直接做距离、面积或编辑是合适的。
+
+| 概念 | 直觉 | 检查位置 |
+|---|---|---|
+| Geographic Coordinate System (GCS) | 在椭球/球面上用经纬度定位，单位常为度 | Layer Properties → Source |
+| Projected Coordinate System (PCS) | 将地球表面投影到平面，单位常为米/英尺 | Map/Layer Properties |
+| Datum | 地球形状与坐标框架的定义 | Spatial Reference 详情 |
+| Map coordinate system | 当前地图显示与部分环境的参考 | Map Properties |
+| Geographic transformation | 在不同 datum/GCS 之间转换 | Map/Project 工具参数 |
+
+## Define Projection 与 Project：必须分清
+
+| 工具 | 它做什么 | 何时用 | 它不做什么 |
+|---|---|---|---|
+| **Define Projection** | 给现有坐标值写入/修正正确的坐标系定义 | 数据缺少定义，且你从可靠来源知道原坐标系 | 不转换坐标值，不能把经纬度“变成”米 |
+| **Project** | 创建新数据并把坐标转换到目标坐标系 | 需要统一分析坐标系或更换投影 | 不能修复一开始就被错误定义的数据 |
+
+<div class="callout pitfall">
+<span class="callout-title">不要用 Define Projection 试着“转换”数据</span>
+如果把实际经纬度数据错误定义成本地米制投影，坐标数字没有移动，只是被错误解释，图层常会飞到异常位置。先确认原始坐标代表什么；定义正确后，再用 Project 创建转换后的副本。
+</div>
+
+## 初学者选择坐标系的规则
+
+1. **先问用途：**只是全球浏览，还是要做本地距离/面积？
+2. **确认研究范围：**一个城市、一个省、一个国家或全球需要不同投影。
+3. **检查单位：**1 km 缓冲最好在适合研究区、以米为单位的投影中完成，或明确使用合适的 geodesic 方法。
+4. **统一分析数据：**关键输入投影到一致、适合任务的 PCS；保留原始数据。
+5. **记录 transformation：**跨 datum 时记录所用地理变换。
+6. **抽查已知位置和距离：**不要只相信“无错误消息”。
+
+<div class="callout note">
+<span class="callout-title">加拿大项目示例</span>
+不要因为数据位于加拿大就机械选择同一个投影。UTM 分区适合许多局部任务，但跨越多个分区、省域或全国制图可能需要另一种投影。选择应由研究范围、形变性质和机构标准共同决定。
+</div>
+
+## 三步诊断“不重叠”
+
+1. 对每个图层执行 **Zoom To Layer**，查看其 extent 数值是否合理；
+2. 查看源坐标系是否 Unknown、定义错误，或 X/Y 是否颠倒；
+3. 比较 datum、地图单位与地理变换；确认后用 Define Projection 或 Project，而不是反复试猜。
+
+官方的 [坐标系、地图投影与变换说明](https://pro.arcgis.com/en/pro-app/latest/help/mapping/properties/coordinate-systems-and-projections.htm) 强调：动态投影方便显示，但正式分析或编辑前应考虑把数据转换到一致且适合任务的坐标系。
+
+# 添加、检查与整理数据
+
+## 添加数据的四条入口
+
+- **Map → Add Data：**从项目连接、文件夹、geodatabase 或 Portal 添加；
+- **Catalog：**浏览数据后拖入地图，或先建立 Folder/Database Connection；
+- **ArcGIS Online / Living Atlas：**搜索组织、权威内容或公开内容；
+- **URL / 服务连接：**添加可访问的 Web 服务或服务器连接。
+
+添加之后不要立刻分析。先完成一轮“到货检查”：
+
+| 检查 | 怎么做 | 要找什么 |
+|---|---|---|
+| 数据源 | Layer Properties → Source | 路径/服务、数据类型、坐标系、extent |
+| 记录与字段 | Open Attribute Table | 行数、字段类型、别名、单位、NULL |
+| 几何 | Zoom To Layer + 抽查 | 位置、异常远点、空几何、边界 |
+| 元数据 | Catalog → Metadata / Item page | 来源、日期、许可、方法、限制 |
+| 显示状态 | Contents | 可见性、比例尺范围、筛选、活动选择 |
+| 项目环境 | Geoprocessing Environments | 输出坐标系、extent、mask、cell size |
+
+<div class="callout tip">
+<span class="callout-title">先记录基线数量</span>
+分析前写下每个输入的要素数、关键字段的空值数、唯一键数量和空间范围。每次工具运行后再比较。很多错误不会让工具失败，只会产生“看起来合理”的错误结果。
+</div>
+
+## 从 CSV 创建点
+
+假设表中有 `longitude`、`latitude`：
+
+1. 先在表格软件中确认它们是数值字段，没有度数符号或混合文本。
+2. 使用 **XY Table To Point**。
+3. X 选择 longitude/easting，Y 选择 latitude/northing；不要因表格列顺序猜测。
+4. 输入坐标系必须描述这些数值当前的含义，而不是你希望输出是什么。
+5. 输出到工作 geodatabase，并检查若干已知点。
+6. 需要本地投影时，再使用 **Project**。
+
+常见异常包括 X/Y 对调、负号丢失、0 或 999 作为缺失值、经纬度字段被读成文本，以及把 WGS 84 经纬度错误指定为投影坐标。
+
+## 浏览、选择与筛选
+
+- **Selection（选择）：**临时标记一组记录；许多工具只处理被选择的要素。
+- **Definition Query（定义查询）：**让不满足条件的记录不进入该图层的工作范围。
+- **Display Filter（显示筛选）：**按比例尺/表达式改变显示，通常不改变分析数据范围。
+- **Export Features：**把需要的记录写成新数据集，形成明确、可复现的输入。
+
+属性查询示例：
+
+```sql
+POPULATION >= 10000 AND STATUS = 'Open'
+SERVICE_TYPE IN ('Clinic', 'Community Centre')
+LAST_UPDATE IS NOT NULL
+```
+
+字段分隔符和日期语法可能随数据源变化，最好用 **Select By Attributes** 的字段/值构造器生成表达式。NULL 应使用 `IS NULL`，不能写成 `= NULL`。
+
+## 连接前先判断关系
+
+| 操作 | 依据 | 适用问题 | 主要风险 |
+|---|---|---|---|
+| Attribute Join | 共同键值 | 把人口表接到社区代码 | 键类型不同、空格、重复键、一对多 |
+| Relate | 共同键值但保持独立表 | 一个地块对应多条检查记录 | 下游工具未必自动使用 relate |
+| Spatial Join | 空间关系 | 每个社区内有多少设施？ | target/join 方向、边界点、匹配规则 |
+| Join Field | 键值并写出字段 | 将稳定一对一字段永久加入输出 | 写错数据、字段名冲突 |
+
+连接后至少检查：原记录数是否保留、未匹配数、键是否唯一、总量是否意外倍增。一个社区代码在外部表出现三次，可能让一对一假设失效。
+
+# 地图浏览、符号化与标注
+
+## 让符号服从变量类型
+
+| 数据含义 | 推荐起点 | 例子 | 不宜做法 |
+|---|---|---|---|
+| 无顺序类别 | Unique Values + 定性色 | 设施类型 | 用深浅暗示高低 |
+| 有序数值/率 | Graduated Colors + 顺序色 | 每万人设施数 | 用随机类别色 |
+| 围绕有意义中点 | Diverging colors | 相对平均值的正/负偏差 | 没有中点却强行红蓝 |
+| 数量总量 | Proportional/Graduated Symbols | 每站客流量 | 用面颜色让大区域占视觉优势 |
+| 密集点探索 | Heat Map / clustering | 大量事件点 | 把热度当成统计显著性 |
+| 单一对象层 | Single Symbol | 研究区边界 | 不必要的多色分类 |
+
+## 计数、率和归一化
+
+社区病例总数高，可能只是人口多。若问题是风险或负担相对水平，应使用合适分母，如：
+
+$$
+\text{每万人设施数} =
+\frac{\text{设施数量}}{\text{人口}} \times 10{,}000
+$$
+
+分母必须与分子属于相同区域、时间和人群；小人口区域的率可能非常不稳定。需要同时传达总量与率时，可制作并列地图或在弹窗中同时展示，不要让一张图承担互相冲突的任务。
+
+## 分类与颜色
+
+- **Natural Breaks (Jenks)：**强调数据内部的自然组团；换数据后断点会变。
+- **Quantile：**每类要素数接近；数值很接近的区域可能被分到不同类。
+- **Equal Interval：**区间宽度一致；偏态数据可能大量挤在一类。
+- **Manual Interval：**依据政策阈值或可比较的固定标准；要记录理由。
+
+通常从 4–6 类开始，根据任务调整。顺序量用由浅到深的顺序色带，围绕明确基准用发散色带，类别用可区分的定性色。检查色觉可辨性、灰度打印和文字/边界对比，避免只靠红绿区分。
+
+## 标签、弹窗与比例尺
+
+1. 标签只显示辨认任务需要的字段；设置优先级、冲突策略和可见比例尺。
+2. 为字段设置可读别名和单位，例如“人口（2025）”，不要暴露 `POP_25_FINAL2`。
+3. 弹窗按重要性排序，隐藏内部 ID、维护字段和不应公开的属性。
+4. 底图应提供上下文而不抢夺主题层；必要时降低饱和度或透明度。
+5. 缩放到最终阅读大小检查，不要只在大屏高倍率下判断。
+
+<div class="callout warning">
+<span class="callout-title">地图分类是分析决定</span>
+改变断点、分母、颜色中点或缺失值显示，都可能改变读者感知到的模式。图例应写清变量、单位、时期和无数据含义；重要决策最好说明分类方法。
+</div>
+
+# 查询、选择与基础地理处理
+
+## 同一个问题，可能需要不同操作
+
+| 想回答的问题 | 使用操作 | 结果形态 |
+|---|---|---|
+| 哪些社区人口超过 10,000？ | Select By Attributes | 临时选择集 |
+| 地图只显示开放设施 | Definition Query | 图层视图改变 |
+| 将人口字段接入相同社区代码 | Attribute Join | 字段临时/永久扩展 |
+| 哪些设施位于研究区内？ | Select By Location | 空间选择集 |
+| 每个社区内有几个设施？ | Spatial Join | 新输出与汇总字段 |
+| 设施 1 km 范围覆盖哪里？ | Buffer | 新的面要素类 |
+
+**Select By Location** 要读清四件事：target features、spatial relationship、selecting features 和 selection type。把 target 与 selecting 对调，问题就变了；边界上对象如何处理也取决于关系定义。
+
+## 地理处理的通用模型
+
+> **输入 → 参数 → 环境设置 → 输出 → 消息/历史 → 独立验证**
+
+| 工具 | 核心作用 | 输出检查 |
+|---|---|---|
+| Project | 转换空间参考 | 坐标系、extent、已知点 |
+| Buffer | 创建指定距离范围 | 单位、planar/geodesic、dissolve |
+| Clip | 用边界裁剪 | 边缘、要素数、是否损失属性 |
+| Dissolve | 按字段合并几何 | 分组字段、multipart、汇总值 |
+| Merge / Append | 合并相同主题数据 | schema、字段映射、重复 |
+| Intersect | 保留输入共同空间 | 输出几何、碎片、面积 |
+| Spatial Join | 按空间关系转移/汇总属性 | Join_Count、匹配规则、未匹配 |
+| Near | 计算最近对象/距离 | 距离单位、无匹配值、选择范围 |
+
+运行前展开 **Environments**，确认 Output Coordinate System、Processing Extent、Mask、Cell Size、Snap Raster 等是否继承了旧项目设置。矢量任务不一定使用所有环境，但“隐藏的旧 extent”足以让输出意外为空。
+
+<div class="callout pitfall">
+<span class="callout-title">活动选择会悄悄缩小输入</span>
+ArcGIS 地理处理工具通常只处理输入图层中当前被选择的要素。运行前查看 Contents/属性表的选择计数；要处理全部记录，应清除选择，或直接使用数据集而不是带选择的图层。
+</div>
+
+# 完整实践：识别公共服务覆盖缺口
+
+## 问题、输入与边界
+
+教学问题是：
+
+> 哪些虚构社区的中心点距离最近服务设施超过 1 km，因而值得进一步调查？
+
+输入假定为：
+
+- `Neighbourhoods_Raw`：社区面，含 `NEIGH_ID`、`NAME`、`POPULATION`；
+- `Services_Raw`：服务设施点，含 `SERVICE_ID`、`TYPE`、`STATUS`；
+- 研究区边界（可选），以及说明字段、日期和来源的元数据。
+
+这个教学定义只测量平面直线距离。河流、道路、坡度、营业时间、容量、费用、语言和出行方式都未纳入，因此“缓冲区外”只能作为筛查信号。
+
+## 示意数据
+
+下图由固定随机种子和虚构坐标生成，只用于解释流程；方格不是任何真实社区。
+
+```{r fictional-access-map, fig.cap="虚构社区、服务设施与 1 km 直线缓冲示意。", fig.alt="十二个方格社区中，三个蓝色服务点带有圆形一千米缓冲区；未覆盖社区以橙色显示。"}
+old_par <- par(mar = c(3.2, 3.2, 1.2, 1.2), xaxs = "i", yaxs = "i")
+plot(NA, xlim = c(0, 4), ylim = c(0, 3), asp = 1,
+     xlab = "虚构东向距离（km）", ylab = "虚构北向距离（km）",
+     axes = TRUE)
+
+theta <- seq(0, 2 * pi, length.out = 240)
+for (j in seq_len(nrow(services))) {
+  polygon(services$x[j] + cos(theta), services$y[j] + sin(theta),
+          col = grDevices::adjustcolor("#56B4E9", alpha.f = 0.16),
+          border = "#2B6F9E", lty = 2)
+}
+
+for (i in seq_len(nrow(neighbourhoods))) {
+  fill <- if (neighbourhoods$within_1km[i]) "#D8EFEA" else "#F6C784"
+  rect(neighbourhoods$col[i], neighbourhoods$row[i],
+       neighbourhoods$col[i] + 1, neighbourhoods$row[i] + 1,
+       col = grDevices::adjustcolor(fill, alpha.f = 0.78),
+       border = "#5C7184", lwd = 1.2)
+  text(neighbourhoods$x[i], neighbourhoods$y[i],
+       labels = neighbourhoods$id[i], cex = 0.78, col = "#17324D")
+}
+points(services$x, services$y, pch = 21, cex = 1.45,
+       bg = "#0072B2", col = "white", lwd = 1.2)
+text(services$x, services$y - 0.16, services$id,
+     pos = 1, cex = 0.72, col = "#17324D")
+legend("topright",
+       legend = c("1 km 内", "潜在缺口", "服务设施", "1 km 缓冲"),
+       fill = c("#D8EFEA", "#F6C784", NA, NA),
+       border = c("#5C7184", "#5C7184", NA, NA),
+       pch = c(NA, NA, 21, NA),
+       pt.bg = c(NA, NA, "#0072B2", NA),
+       lty = c(NA, NA, NA, 2),
+       col = c(NA, NA, "#0072B2", "#2B6F9E"),
+       bg = "white", cex = 0.78)
+par(old_par)
+```
+
+示意结果可按以下方式审计：
+
+```{r fictional-access-table, echo=FALSE}
+display_access <- data.frame(
+  社区 = neighbourhoods$id,
+  人口 = format(neighbourhoods$population, big.mark = ","),
+  最近设施距离_km = sprintf("%.2f", neighbourhoods$nearest_km),
+  初筛状态 = ifelse(neighbourhoods$within_1km, "1 km 内", "进一步调查")
+)
+knitr::kable(display_access, align = c("l", "r", "r", "l"))
+```
+
+## ArcGIS Pro 操作步骤
+
+### 第 1 步：导入并保护原始数据
+
+- 将交付文件保留在 `data_raw`，不要直接编辑。
+- 用 **Export Features** 或 **Feature Class To Geodatabase** 把工作副本写入 `Community_Access.gdb`。
+- 输出命名为 `Neighbourhoods_Working`、`Services_Working`。
+- **检查：**记录数、字段、extent、几何类型与元数据是否与原始数据一致。
+
+### 第 2 步：建立适合距离分析的坐标系
+
+- 查看两个图层的 Source → Spatial Reference。
+- 如果定义缺失但已知原坐标系，先正确使用 **Define Projection**。
+- 用 **Project** 输出 `Neighbourhoods_LocalPCS` 与 `Services_LocalPCS`。
+- **检查：**两者坐标系一致，单位为米，已知位置重合且 extent 合理。
+
+### 第 3 步：筛选有效设施
+
+- 使用属性查询，例如 `STATUS = 'Open'`。
+- 将选择导出为 `Services_Open`，让后续输入明确。
+- **检查：**导出数等于预期开放设施数，抽查被排除记录。
+
+### 第 4 步：创建 1 km 服务缓冲区
+
+- 打开 **Buffer**：Input = `Services_Open`，Distance = `1000 Meters`。
+- 根据问题决定是否 Dissolve；只问“任一设施覆盖范围”时可 dissolve all。
+- 输出 `Services_Buffer_1km`，记录 planar/geodesic 设置。
+- **检查：**用测量工具抽查半径，确认不是 1 度或 1 英尺。
+
+### 第 5 步：定义社区判定位置
+
+本练习用社区中心/内部点简化判定。可用 **Feature To Point** 创建 `Neighbourhood_Centres`，并根据数据性质决定是否要求点位于面内。真实问题也可能计算被覆盖面积比例或人口栅格覆盖率；那是不同 estimand，不能混写。
+
+- **检查：**每个社区有一个点，点没有落在异常位置。
+
+### 第 6 步：空间连接
+
+- Target Features = `Neighbourhood_Centres`；
+- Join Features = `Services_Buffer_1km`；
+- Match Option 选择合适的相交/包含关系；
+- 输出 `Neighbourhood_Access_1km`。
+
+`Join_Count > 0` 表示中心点落入至少一个缓冲区。若未 dissolve，Join_Count 还可能反映重叠的设施缓冲数量；必须知道它在当前设置中的含义。
+
+### 第 7 步：计算并制图
+
+- 新增文本或短整数字段 `ACCESS_1KM`；
+- 用 Calculate Field 写入“Within 1 km / Review”；
+- 用 Unique Values 显示两类，以橙色突出待调查社区；
+- 弹窗展示社区名、人口、最近距离（若已计算）、数据日期和限制。
+
+### 第 8 步：独立验证
+
+<ol class="checklist">
+  <li>输入社区数 = 输出社区数；每个社区仍有唯一 `NEIGH_ID`。</li>
+  <li>统计 `Join_Count = 0` 的数量，并手工检查至少 3 个边界案例。</li>
+  <li>使用 Measure 或 Near 抽查离设施最近/最远的社区。</li>
+  <li>确认地图与数据单位，读取工具 Messages 和 Warnings。</li>
+  <li>清除选择、定义查询和意外环境设置后复核结果是否一致。</li>
+  <li>在 README 中记录输入版本、投影、距离、工具参数、时间与操作者。</li>
+</ol>
+
+<div class="callout warning">
+<span class="callout-title">1 km 缓冲不等于 1 km 步行或服务可达性</span>
+直线缓冲忽略路网、障碍、入口、坡度、交通方式和时间。若决策真正关注出行，应使用质量合格的网络数据与服务区/OD 成本矩阵等网络分析，并明确速度、限制和时段。设施“附近”也不等于可用、可负担或有容量。
+</div>
+
+# 编辑与数据完整性
+
+## 创建可维护的数据，而不只是画几个图形
+
+新建 feature class 时先确定：
+
+- 几何类型（点/线/面）以及是否需要 Z/M；
+- 与项目匹配的坐标系；
+- 稳定且不依赖行号的唯一标识；
+- 字段名称、别名、类型、长度、单位、允许 NULL 与默认值；
+- 哪些值应通过 domain、subtype 或规则约束；
+- 数据由谁维护、如何审计、如何备份。
+
+基本编辑循环是：
+
+> **选择正确的可编辑图层 → Create/Modify Features → 打开 Snapping → 绘制几何 → 填属性 → 检查 → Save Edits 或 Discard Edits**
+
+项目保存、地理处理输出与编辑保存是不同状态。关闭项目时认真阅读提示，不要假定保存 `.aprx` 已经保存未提交的要素编辑。
+
+## 捕捉、拓扑和属性规则
+
+- **Snapping：**让新顶点贴合既有端点、边或交点，减少缝隙与悬挂。
+- **Domains：**限制字段为允许值列表或数值范围，例如设施状态只能是 Open/Closed/Planned。
+- **Subtypes：**在同一要素类内区分子类并提供不同默认值或规则。
+- **Topology：**表达“面不能重叠”“线必须连接”等空间完整性规则。
+- **Attribute rules：**自动计算、约束或验证属性；属于进阶治理能力。
+
+<div class="callout tip">
+<span class="callout-title">安全编辑习惯</span>
+保留不可修改的原始副本；重大批量计算先复制工作字段或数据集；使用唯一 ID 而不是显示名称连接；编辑后核对 NULL、重复 ID、几何和总数。File geodatabase 可被多个客户端读取，但同一数据集的并发编辑有锁定限制。
+</div>
+
+# 布局、导出与地图 QA
+
+## 从地图视图到布局
+
+地图视图用于工作，布局用于交付。通过 **Insert → New Layout** 选择页面，再插入 **Map Frame**。常见元素包括：
+
+| 元素 | 必须回答的问题 |
+|---|---|
+| 标题/副标题 | 地图展示什么区域、指标和时期？ |
+| 图例 | 每个符号、断点、单位与 NoData 是什么？ |
+| 比例尺 | 当前投影和地图框下是否有意义、单位是否合适？ |
+| 方向信息 | 是否需要 north arrow，是否会造成虚假精确感？ |
+| 来源/日期 | 数据来自谁、何时、哪个版本？ |
+| 作者/组织 | 谁制作和负责更新？ |
+| 方法/限制 | 缓冲距离、分类或关键假设是否需要说明？ |
+
+图例不应机械列出底图、边界等所有图层；删除多余标题和字段名，改成读者语言。保留留白和视觉层级，让核心发现先被看到。
+
+## 导出建议
+
+- **PDF：**报告、打印和矢量文本优先；检查字体、透明度和裁切。
+- **PNG：**网页、幻灯片和固定像素展示；按最终尺寸选择足够分辨率。
+- 对印刷品可从 300 dpi 起检查，但最终要求由印刷与尺寸决定。
+- 导出后必须打开成品，在 100% 和最终展示大小检查，不只看 ArcGIS Pro 画布。
+- 文件名包含主题、范围、日期/版本，例如 `Community_Access_1km_20260908.pdf`。
+
+### 发布前地图检查
+
+<ol class="checklist">
+  <li>标题、图例、单位、时期和来源一致，拼写正确。</li>
+  <li>研究范围完整，没有异常远点把地图缩得很小。</li>
+  <li>颜色、字号和线宽在最终尺寸、灰度和常见色觉条件下可辨。</li>
+  <li>没有把计数误称为率；分类方法和 NoData 不会误导。</li>
+  <li>比例尺、投影和方向元素适合当前地图。</li>
+  <li>敏感位置、内部字段、个人信息和受限制数据已移除或聚合。</li>
+  <li>至少一位不了解制作过程的人完成独立阅读检查。</li>
+</ol>
+
+# ArcGIS Online 与 Web 分享
+
+## 先分清项目项、图层、Web 地图与应用
+
+| Web 对象 | 它保存什么 | 常见依赖 |
+|---|---|---|
+| File item | 上传的 CSV、shapefile zip、GeoJSON 等文件 | 可作为发布来源，但本身未必是交互图层 |
+| Hosted feature layer | 由 ArcGIS Online 托管的要素与属性服务 | 权限、编辑设置、视图、存储 |
+| Feature layer view | 引用同一托管数据的受控视图 | 源 hosted layer，筛选/字段/权限配置 |
+| Web map | 图层引用、顺序、样式、弹窗、书签等 | 地图中每个图层及底图都要可访问 |
+| Web app | 面向受众的界面和交互 | 通常依赖一个或多个 Web map/layer |
+
+ArcGIS Online 可从文件或 Web 添加数据，也可发布托管图层；同一个图层能被多个地图引用并采用不同显示设置。发布图层与保存 Web 地图是两个动作。
+
+## 一个安全的 Web 地图流程
+
+1. **Add content：**上传允许发布的数据，或从 ArcGIS Pro 分享 Web layer。
+2. **完善 item details：**填写摘要、描述、标签、来源、更新日期、使用条款、范围与缩略图。
+3. **配置 layer：**字段别名、样式、过滤、弹窗、刷新、编辑和导出设置。
+4. **Save web map：**给地图明确名称、摘要和文件夹，测试图层顺序与比例尺。
+5. **选择受众：**Owner、Group、Organization 或 Everyone (public)。
+6. **Review sharing：**保证地图及所有依赖图层对同一目标受众可访问。
+7. **无痕/非所有者测试：**用目标权限的账号或私密浏览窗口打开。
+8. **记录负责人：**谁维护数据、何时下线、反馈渠道在哪里。
+
+<div class="callout pitfall">
+<span class="callout-title">分享 Web map 不会自动修复所有图层权限</span>
+你作为所有者能看到地图，不代表同事或公众能看到其依赖图层。若图层没有共享给相同受众，接收者可能看到空白或登录请求。ArcGIS Online 的 Review sharing 提示应逐条处理。
+</div>
+
+<div class="callout warning">
+<span class="callout-title">公开编辑尤其危险</span>
+发布前检查 hosted feature layer 的 editing、export、sync、attachments 和 editor tracking 设置。不要把精确住址、患者/客户位置、内部运营字段、访问令牌或可重识别组合公开。需要不同受众时，优先考虑 hosted feature layer view、最小字段和只读权限。
+</div>
+
+参考官方的 [ArcGIS Online 建图流程](https://doc.arcgis.com/en/arcgis-online/reference/get-started-with-maps.htm)、[内容分享流程](https://doc.arcgis.com/en/arcgis-online/get-started/get-started-with-sharing.htm) 和 [托管图层说明](https://doc.arcgis.com/en/arcgis-online/manage-data/hosted-web-layers.htm)。组织角色、权限和安全策略优先于通用步骤。
+
+# 可重复工作流与自动化入门
+
+## 让一次成功变成可以重做
+
+最低限度的可重复记录应包括：
+
+- 输入数据的来源、版本/日期、许可与校验信息；
+- 原始和目标坐标系，以及 geographic transformation；
+- 每个工具的输入、参数、环境、输出和消息；
+- 运行日期、软件版本、扩展和操作者；
+- 输出数量、未匹配数、抽查结果与已知限制；
+- 最终地图、Web 项目项 URL/ID、分享范围和维护责任。
+
+ArcGIS Pro 的 **Geoprocessing History** 会保存已运行工具及参数，可重新打开、另存为模型或复制 Python 命令。History 是重要证据，但不能替代问题定义、输入版本和结果验证。
+
+## ModelBuilder、ArcPy 与 Arcade
+
+| 工具 | 适合场景 | 初学者起点 |
+|---|---|---|
+| ModelBuilder | 可视化串联工具、参数化和批量迭代 | 把已验证的 Project → Buffer → Spatial Join 串起来 |
+| ArcPy | Python 批处理、数据管理、分析与地图自动化 | 从 History 复制命令，改为明确变量和输出 |
+| ArcGIS Notebooks | 在受控 ArcGIS 环境中结合说明与 Python | 用小数据验证权限和运行环境 |
+| Arcade | 标签、弹窗、符号和规则中的表达式 | 创建显示字段；不要把它与 ArcPy 混淆 |
+
+下面的 ArcPy 仅作结构示例，必须在 **ArcGIS Pro 提供的 Python 环境**中根据实际路径、许可和字段修改：
+
+```python
+from pathlib import Path
+import arcpy
+
+arcpy.env.overwriteOutput = False
+
+project_home = Path(r"C:\GIS\Community_Access")
+gdb = project_home / "Community_Access.gdb"
+
+services_raw = str(gdb / "Services_Working")
+neighbourhoods_raw = str(gdb / "Neighbourhoods_Working")
+services_projected = str(gdb / "Services_LocalPCS")
+neighbourhoods_projected = str(gdb / "Neighbourhoods_LocalPCS")
+service_buffer = str(gdb / "Services_Buffer_1km")
+access_output = str(gdb / "Neighbourhood_Access_1km")
+
+# 用研究区适用的真实 SpatialReference/WKID 替换占位值。
+target_crs = arcpy.SpatialReference(00000)
+
+arcpy.management.Project(services_raw, services_projected, target_crs)
+arcpy.management.Project(neighbourhoods_raw, neighbourhoods_projected, target_crs)
+
+arcpy.analysis.Buffer(
+    in_features=services_projected,
+    out_feature_class=service_buffer,
+    buffer_distance_or_field="1000 Meters",
+    dissolve_option="ALL",
+    method="PLANAR",
+)
+
+arcpy.analysis.SpatialJoin(
+    target_features=neighbourhoods_projected,
+    join_features=service_buffer,
+    out_feature_class=access_output,
+    join_operation="JOIN_ONE_TO_ONE",
+    join_type="KEEP_ALL",
+    match_option="INTERSECT",
+)
+
+print("Output features:", arcpy.management.GetCount(access_output)[0])
+```
+
+不要直接运行占位 WKID `00000`。脚本还应加入输入存在检查、明确 transformation、异常处理、日志和结果断言。默认 `overwriteOutput = False` 能减少误覆盖；需要覆盖时，应只对已确认的派生输出启用。
+
+<details>
+<summary>更稳健的 ArcPy 错误报告骨架</summary>
+
+```python
+try:
+    # Run validated geoprocessing steps here.
+    pass
+except arcpy.ExecuteError:
+    print(arcpy.GetMessages(2))
+    raise
+except Exception as exc:
+    print(f"Python error: {exc}")
+    raise
+```
+
+</details>
+
+# 故障排查与质量控制
+
+## 从症状回到数据、坐标和状态
+
+| 现象 | 常见原因 | 优先检查 |
+|---|---|---|
+| 图层数据源失效 | 文件移动、盘符/路径改变、无权限 | Layer Properties → Source；Repair Data Source |
+| 地图空白 | 未 Zoom、图层关闭、比例尺范围、筛选、透明/符号 | Zoom To Layer；Contents；Definition Query |
+| 图层相距很远 | 坐标系定义错、X/Y 对调、datum/单位错误 | extent 数值、Source、已知控制点 |
+| 缓冲巨大/极小 | 用度或英尺误当米，参数/投影不适合 | 图层单位、Distance、planar/geodesic |
+| 工具输出为空 | 活动选择、环境 extent/mask、无空间关系 | 选择计数、Environments、输入范围 |
+| Join 后行数暴增 | 连接键重复、一对多、空格/类型问题 | key 频数、cardinality、未匹配表 |
+| 输出已存在/被锁 | 同名输出、表仍打开、其他进程访问 | 唯一命名、关闭表/项目、检查锁 |
+| 工具灰色或不存在 | 图层类型不符、许可/扩展、门户权限 | tool help、Licensing、组织角色 |
+| Web 地图别人看不到 | 依赖图层未分享、登录限制、链接指向 item page | Review sharing；用目标身份测试 |
+| 在线分析失败 | credits、权限、输入限制、服务不可用 | 预计 credits、角色、messages、状态 |
+
+推荐顺序：
+
+> **检查数据源 → Zoom To Layer → 检查选择/筛选 → 检查坐标系与 extent → 检查字段/NULL → 检查环境 → 阅读消息 → 检查许可/权限 → 小样本重跑 → 验证输出**
+
+## 每个输出的最低 QA
+
+1. **计数：**输入与输出要素数为什么相同或不同？
+2. **schema：**关键 ID、字段类型、单位和 NULL 是否保留？
+3. **空间：**extent、坐标系、几何类型、空/无效几何是否合理？
+4. **数量：**面积、长度、人口总量或 Join_Count 是否出现不可能变化？
+5. **边界案例：**至少检查命中、未命中和临界各一例。
+6. **视觉：**叠加原始数据检查，不以视觉替代数值核对。
+7. **消息：**保存 warning；工具成功完成不等于结论正确。
+8. **可追溯性：**输入、参数、时间、版本、输出名与限制均有记录。
+
+# 责任、隐私与空间推断
+
+## 地图可能放大风险
+
+空间数据能把分散的属性重新组合成可识别位置。精确住址、患者/客户点、稀有事件、庇护设施、濒危物种或关键基础设施即使没有姓名，也可能被重识别或滥用。
+
+最低原则包括：
+
+- 只收集和分享完成任务所必需的空间精度与字段；
+- 根据风险采用聚合、模糊化、掩膜、受控 view 或访问控制；
+- 对小计数和稀有组合设置抑制规则；
+- 区分内部分析层与公众展示层；
+- 公开前让数据所有者、隐私/安全责任人审核；
+- 记录底图、数据、影像的署名和使用条款。
+
+## 四种常见推断陷阱
+
+| 陷阱 | 含义 | 应对 |
+|---|---|---|
+| Ecological fallacy | 区域平均关系不等于个体关系 | 明确分析单位，不做个体外推 |
+| MAUP | 分区边界/尺度改变会改变统计模式 | 比较合理尺度，报告边界敏感性 |
+| Spatial autocorrelation | 相邻观测往往不独立 | 需要时采用空间统计而非普通检验 |
+| Modifiable classification | 断点与颜色改变读者看到的模式 | 预先说明方法并做敏感性比较 |
+
+“附近”“重叠”“热点”都是描述，不自动等于因果。结论应与数据质量、设计和分析尺度相称。
+
+# 练习与答案
+
+## 概念练习
+
+1. 道路中心线、社区边界和高程分别适合什么数据模型？
+2. 删除地图中的 layer 是否等于删除 feature class？为什么？
+3. CSV 中 `longitude = -113.49`、`latitude = 53.54` 时，X 和 Y 各选哪个？
+4. 数据的坐标系显示 Unknown，但数据提供者确认坐标是 WGS 84 经纬度；第一步用 Define Projection 还是 Project？
+5. 比较人口不同社区的某疾病负担，应优先映射病例总数还是率？还要检查什么？
+6. 将人口表按 `NEIGH_ID` 接到社区面用哪类 join？计算每个社区内设施数量又用什么？
+7. Buffer 输出突然只有 5 条，而输入有 300 条，最先检查什么？
+8. 自己能看到 Web map，同事打开只有底图，最可能遗漏什么？
+9. 解释为什么 1 km 直线缓冲不能回答“10 分钟步行内是否可达”。
+10. 写出从原始数据到发布地图至少六项 QA 证据。
+
+<details>
+<summary>查看概念练习答案</summary>
+
+1. 道路通常为线，社区边界为面，高程通常为连续栅格。
+2. 通常不等于。Layer 是数据引用与显示配置；从地图移除不删除源 feature class。使用 Delete 等数据管理动作才可能删除数据。
+3. X = longitude，Y = latitude；同时把输入坐标系设为真正描述这些数值的 GCS，并抽查位置。
+4. 先用 Define Projection 写入已知的正确定义；若分析需要另一投影，再用 Project 生成转换副本。
+5. 若问题是相对风险/负担，应使用定义一致的率并保留总数背景；检查分母、时期、小数稳定性、缺失和年龄等结构差异。
+6. 共同 `NEIGH_ID` 用 Attribute Join/Join Field；按位置统计设施用 Spatial Join。
+7. 检查输入图层是否有 5 条活动选择，同时检查 definition query 和 environments。
+8. Web map 依赖的业务图层没有共享给同事的受众，或需要同事没有的登录权限。
+9. 缓冲只测几何直线距离，不知道道路、障碍、入口、坡度、速度和时段；步行时间需要网络模型及相应假设。
+10. 示例：输入/输出计数、唯一键/未匹配数、坐标系和单位、extent、工具消息、关键参数、边界抽查、隐私/权限检查、元数据与版本记录。
+
+</details>
+
+## 综合挑战
+
+为你熟悉的一类公共设施设计一个“不足覆盖初筛”项目。提交：
+
+- 一句话空间问题，明确对象、区域、时间和“覆盖”的操作定义；
+- 输入清单与来源/许可/日期/坐标系；
+- 一张从原始数据到输出的工具流程图；
+- 一份参数与环境表；
+- 一张布局地图或 Web map；
+- 一份包含数量核对、边界抽查、隐私和限制的 QA 记录。
+
+评分重点不是地图颜色，而是问题、数据、坐标、工具和结论之间是否一致且可审计。
+
+# 快速参考
+
+## 常见术语中英对照
+
+| 中文 | English | 一句话理解 |
+|---|---|---|
+| 要素 | Feature | 一个带几何和属性的空间对象 |
+| 要素类 | Feature class | 同几何类型、同 schema 的要素集合 |
+| 图层 | Layer | 数据源的显示、筛选与交互引用 |
+| 地理数据库 | Geodatabase | ArcGIS 的原生地理数据组织与行为容器 |
+| 空间参考 | Spatial reference | 坐标系、单位及相关定义 |
+| 动态投影 | On-the-fly projection | 为显示临时转换，不改写源数据 |
+| 地理处理 | Geoprocessing | 用工具处理空间/相关数据并产生结果 |
+| 属性连接 | Attribute join | 按共同键接字段 |
+| 空间连接 | Spatial join | 按位置关系接字段/汇总 |
+| 托管要素图层 | Hosted feature layer | 由 Online/Enterprise 托管的可查询要素服务 |
+| Web 地图 | Web map | 图层引用、样式、弹窗等的 Web 配置 |
+| 项目项 | Item | ArcGIS 门户中带详情、所有者和分享设置的内容对象 |
+
+## 问题到工具
+
+| 问题 | 起始工具 | 关键检查 |
+|---|---|---|
+| 转换坐标系 | Project | 原定义正确、目标适合、transformation |
+| 一定距离范围 | Buffer | 单位、方法、dissolve、输入选择 |
+| 保留研究区内容 | Clip | clip 边界、输出碎片、属性 |
+| 合并同类边界 | Dissolve | 分组字段、multipart、汇总 |
+| 找空间重叠 | Select By Location / Intersect | 关系方向、输出几何 |
+| 按位置汇总 | Spatial Join | target/join、cardinality、Join_Count |
+| 最近对象 | Near / Generate Near Table | 单位、搜索半径、并列最近 |
+| 按共同 ID 接表 | Add Join / Join Field | 类型、唯一性、未匹配 |
+
+## 最终工作流卡
+
+<ol class="checklist">
+  <li>用一句话定义空间问题、对象、范围、时间和决策。</li>
+  <li>保留原始数据；记录来源、日期、许可、尺度和元数据。</li>
+  <li>检查记录、字段、唯一键、NULL、几何、extent 与异常值。</li>
+  <li>确认原坐标系；为分析选择合适的投影、单位和 transformation。</li>
+  <li>先浏览和抽查，再选择符号、查询、连接和工具。</li>
+  <li>为每个工具明确输入、参数、环境、输出名和预期变化。</li>
+  <li>核对数量、schema、空间范围、单位和边界案例。</li>
+  <li>用标题、图例、来源、时期、方法和限制构建地图沟通。</li>
+  <li>导出后在最终尺寸检查；让第二位读者复核。</li>
+  <li>按最小权限分享，并用目标身份测试所有依赖。</li>
+  <li>保存 History/模型/脚本、README 和维护责任。</li>
+  <li>结论只回答原问题，不把相关、缓冲或聚集夸大为因果。</li>
+</ol>
+
+# 下一步与官方资源
+
+建议学习顺序：
+
+> **地图浏览 → 数据检查 → 坐标系 → 符号化 → 查询与连接 → 地理处理 → 布局 → Web 分享 → ModelBuilder / ArcPy**
+
+完成基础后，可按需要进入栅格与遥感、网络分析、地理编码、三维场景、空间统计、移动采集、Dashboards 或 StoryMaps。扩展和在线分析可能需要额外许可、权限或 credits。
+
+官方资源（页面会随产品更新）：
+
+- [ArcGIS Pro 文档首页](https://pro.arcgis.com/)
+- [ArcGIS Pro 快速入门教程](https://pro.arcgis.com/en/pro-app/latest/get-started/pro-quickstart-tutorials.htm)
+- [Geoprocessing 基础](https://pro.arcgis.com/en/pro-app/latest/help/analysis/geoprocessing/basics/what-is-geoprocessing-.htm)
+- [Geodatabase 介绍](https://pro.arcgis.com/en/pro-app/latest/help/data/geodatabases/overview/what-is-a-geodatabase-.htm)
+- [坐标系、投影与变换](https://pro.arcgis.com/en/pro-app/latest/help/mapping/properties/coordinate-systems-and-projections.htm)
+- [ArcPy 介绍](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/what-is-arcpy-.htm)
+- [ArcGIS Online 数据管理入门](https://doc.arcgis.com/en/arcgis-online/get-started/get-started-with-data.htm)
+- [ArcGIS Online 建图入门](https://doc.arcgis.com/en/arcgis-online/reference/get-started-with-maps.htm)
+- [ArcGIS Online 分享入门](https://doc.arcgis.com/en/arcgis-online/get-started/get-started-with-sharing.htm)
+
+<div class="callout note">
+<span class="callout-title">版本核验</span>
+本教程于 `r format(Sys.Date(), '%Y-%m-%d')` 构建，采用对小版本相对稳定的 ArcGIS Pro 3.x / ArcGIS Online 概念。实际操作前请核对本机版本的在线帮助、组织许可、角色、扩展与安全政策。
+</div>
+
+```{r session-info, echo=FALSE}
+cat("R Markdown build environment\n")
+cat("R version:", R.version.string, "\n")
+cat("knitr:", as.character(utils::packageVersion("knitr")), "\n")
+cat("rmarkdown:", as.character(utils::packageVersion("rmarkdown")), "\n")
+```
+
+<div class="footer-note">
+本页的社区、设施、距离与人口均为固定种子生成的教学示意，不对应真实地点或个人。教程用于学习工作流，不能替代当地数据标准、隐私审查、专业空间分析或业务决策。
+</div>

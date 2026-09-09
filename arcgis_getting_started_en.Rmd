@@ -1,0 +1,993 @@
+---
+title: "Getting Started with ArcGIS"
+pagetitle: "Getting Started with ArcGIS | The V Lab"
+subtitle: "From spatial thinking, data, and coordinate systems to cartography, spatial analysis, and web sharing"
+author: "The V Lab Geographic Information Systems Learning Module"
+date: "Updated `r format(Sys.Date(), '%B %d, %Y')`"
+lang: en
+output:
+  html_document:
+    self_contained: true
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+      print: true
+    number_sections: true
+    anchor_sections: true
+    code_folding: show
+    code_download: false
+    fig_caption: true
+    df_print: kable
+    math_method: mathml
+    css: styles.css
+    includes:
+      before_body: includes/vlab-brand.html
+---
+
+```{r arcgis-setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 8,
+  fig.height = 5.4,
+  fig.retina = 2,
+  out.width = "100%",
+  dev = "png"
+)
+options(stringsAsFactors = FALSE, digits = 3, width = 88)
+
+# Fixed, fictional instructional data; distances may be interpreted as kilometres.
+set.seed(20260908)
+neighbourhoods <- expand.grid(col = 0:3, row = 0:2)
+neighbourhoods$id <- sprintf("N%02d", seq_len(nrow(neighbourhoods)))
+neighbourhoods$x <- neighbourhoods$col + 0.5
+neighbourhoods$y <- neighbourhoods$row + 0.5
+neighbourhoods$population <- sample(seq(1200, 4800, by = 100),
+                                    nrow(neighbourhoods), replace = TRUE)
+services <- data.frame(
+  id = c("S01", "S02", "S03"),
+  x = c(0.8, 2.2, 3.4),
+  y = c(0.7, 2.1, 0.8)
+)
+distance_matrix <- outer(
+  seq_len(nrow(neighbourhoods)),
+  seq_len(nrow(services)),
+  Vectorize(function(i, j) {
+    sqrt((neighbourhoods$x[i] - services$x[j])^2 +
+           (neighbourhoods$y[i] - services$y[j])^2)
+  })
+)
+neighbourhoods$nearest_km <- apply(distance_matrix, 1, min)
+neighbourhoods$within_1km <- neighbourhoods$nearest_km <= 1
+```
+
+<nav class="language-switch" aria-label="Language selection">
+  <span class="language-home">Getting Started with ArcGIS</span>
+  <a href="arcgis_getting_started.html" lang="zh-CN">中文</a>
+  <span class="active" aria-current="page">English</span>
+</nav>
+
+<div class="module-bar">
+  <div class="module-stat"><strong>Audience</strong><span>Students, researchers, and business analysts with no GIS background</span></div>
+  <div class="module-stat"><strong>Study time</strong><span>About 150–210 minutes; sections may be completed separately</span></div>
+  <div class="module-stat"><strong>Prerequisites</strong><span>Basic file and spreadsheet skills; no programming experience required</span></div>
+</div>
+
+<div class="callout note">
+<span class="callout-title">Software scope and version note</span>
+This tutorial uses <strong>ArcGIS Pro 3.x</strong> as its primary desktop pathway and also introduces web maps and sharing in ArcGIS Online. ArcGIS Pro runs on Windows; macOS learners can use institution-provided remote Windows access or a virtual machine, or begin with the browser-based ArcGIS Online sections. Interface names, available tools, extensions, user types, and sharing privileges vary by version and organization configuration, so consult the official help that matches your installation. You can read this page without ArcGIS or an account; the ArcPy examples are illustrative and are not executed when R Markdown renders the page.
+</div>
+
+## How to use this tutorial {-}
+
+ArcGIS is not simply a sequence of buttons. A dependable workflow connects the question, data, spatial reference, analytical assumptions, and intended audience in an auditable chain:
+
+<div class="workflow" aria-label="Eight-step workflow from a spatial question to a shared map">
+  <div class="workflow-step"><strong>1 · Ask</strong><small>What are the objects, area, time, and decision?</small></div>
+  <div class="workflow-step"><strong>2 · Find data</strong><small>Are the source, fields, scale, and licence appropriate?</small></div>
+  <div class="workflow-step"><strong>3 · Set the coordinate system</strong><small>Are location, distance, and area units correct?</small></div>
+  <div class="workflow-step"><strong>4 · Explore and map</strong><small>Find anomalies first, then choose how to communicate.</small></div>
+  <div class="workflow-step"><strong>5 · Query and analyse</strong><small>Selections, joins, and geoprocessing answer the question.</small></div>
+  <div class="workflow-step"><strong>6 · Validate</strong><small>Check counts, extents, units, and boundary cases.</small></div>
+  <div class="workflow-step"><strong>7 · Communicate</strong><small>Design layout, legend, sources, and limitations for the audience.</small></div>
+  <div class="workflow-step"><strong>8 · Share</strong><small>Review permissions, privacy, dependent layers, and metadata together.</small></div>
+</div>
+
+The running example is a wholly fictional “community public-service coverage” exercise. It combines neighbourhood polygons, service-facility points, and population attributes to identify potential gaps located more than **1 kilometre in straight-line distance** from every facility. The example is useful for practising projections, buffers, spatial joins, cartography, and quality control, but it must never be interpreted as a real conclusion about travel accessibility or site selection.
+
+### Learning objectives {-}
+
+By the end, you should be able to:
+
+- describe a spatial dataset in terms of “geometry + attributes + spatial reference + metadata”;
+- distinguish among projects, maps, layers, datasets, layouts, items, web layers, and web maps;
+- create a project, connect a folder, and add and inspect data in ArcGIS Pro;
+- decide which questions suit points, lines, polygons, rasters, and non-spatial tables;
+- distinguish a geographic coordinate system from a projected coordinate system, and **Define Projection** from **Project**;
+- create trustworthy maps with symbology, labels, pop-ups, and visible scale ranges;
+- choose correctly among attribute queries, spatial selections, attribute joins, and spatial joins;
+- run and validate foundational tools such as Buffer, Clip, Dissolve, and Spatial Join;
+- organize edits, outputs, history, and metadata so a workflow can be repeated;
+- export a map layout and share it safely with the correct audience in ArcGIS Online.
+
+# The GIS and ArcGIS landscape
+
+## GIS asks not “what should I draw?” but “what is happening spatially?”
+
+A GIS (Geographic Information System) connects location with descriptive information. Common questions include:
+
+| Question type | Example | Common operations |
+|---|---|---|
+| What is where? | Which neighbourhoods have service locations? | Explore, identify, attribute query |
+| What is nearby? | Is housing within 500 m of a transit stop? | Buffer, Near, network analysis |
+| What overlaps? | Which parcels are in the floodplain? | Select By Location, Intersect |
+| How is it distributed? | Does disease incidence show spatial clustering? | Choropleth maps, density, spatial statistics |
+| What has changed? | How did land cover change from 2015 to 2025? | Time filtering, raster comparison |
+| How can it be reached? | Which route is fastest, and whom does a service area cover? | Network Analyst (usually requires the relevant licence) |
+
+A map is an interface for analysis and communication, not the fact itself. An attractive hotspot might arise from population distribution, the classification method, missing data, or a choice of boundaries; spatial co-occurrence does not by itself establish causality.
+
+## The ArcGIS ecosystem
+
+| Component | Primary use | Role in this tutorial |
+|---|---|---|
+| **ArcGIS Pro** | Windows desktop mapping, editing, 2D/3D analysis, and publishing | Main pathway: local data, analysis, and layouts |
+| **ArcGIS Online** | Esri-hosted content, layers, web maps, apps, and collaboration | Main pathway: browser mapping and sharing |
+| **ArcGIS Enterprise** | An organization-managed portal, servers, and data stores | Concepts only; administrators configure specific workflows |
+| **Living Atlas** | A searchable catalogue of authoritative and community-contributed global content | Data discovery; source and fitness still require review |
+| **Field Maps / Survey123** | Mobile data collection, inspection, and form workflows | A next step |
+| **Dashboards / StoryMaps / Instant Apps** | Audience-facing monitoring, narratives, and lightweight apps | Continue after completing a web map |
+| **ModelBuilder / ArcPy / Notebooks** | Visual models, Python automation, and reproducible analysis | Introduced near the end of this tutorial |
+
+Two object chains are especially important:
+
+> **Desktop: project (.aprx) → map/scene → layer → data source**
+
+> **Web: organization → item → web layer → web map → app**
+
+<div class="callout pitfall">
+<span class="callout-title">Projects and layers usually are not data backups</span>
+An `.aprx` stores maps, layouts, connections, and settings, but most source data remains in a geodatabase, folder, database, or service. A layer generally references a data source while storing display, filtering, and pop-up settings. Removing a layer from a map usually does not delete the data, but moving or renaming a source file can break the link.
+</div>
+
+# ArcGIS Pro projects and interface
+
+## A practical check before you begin
+
+1. Confirm the ArcGIS Pro version, licence level, authorized extensions, and active portal.
+2. Confirm that you can write to the drive containing the project; avoid placing working data directly in an email attachment or temporary downloads folder.
+3. For team projects, agree in advance on the coordinate system, unique identifiers, directories, output naming, and who may edit.
+4. Online tools, geocoding, and hosted storage may consume organizational credits; review estimated use and administrator policies before running them.
+
+The official [ArcGIS Pro quick-start tutorials](https://pro.arcgis.com/en/pro-app/latest/get-started/pro-quickstart-tutorials.htm) are updated as the software changes. If a button appears in a slightly different place, prioritize the help for your installed version.
+
+## What is inside a project?
+
+After creating a **Map** project, you will usually see:
+
+| Object | Typical form | Purpose |
+|---|---|---|
+| Project file | `Community_Access.aprx` | Stores project items, maps, layouts, and connections |
+| Home folder | Folder named after the project | Holds the README, exported maps, scripts, and external data |
+| Default geodatabase | `Community_Access.gdb` | Default output location for many geoprocessing tools |
+| Default toolbox | `Community_Access.atbx` | Stores models and custom tools |
+| Map | Map | Combines layers, a coordinate system, bookmarks, and display settings |
+| Layout | Layout | Organizes a map frame, title, legend, and other elements on a page |
+
+The following directory structure is recommended for learning. Keep `data_raw` read-only and write processed results to the geodatabase or `outputs`:
+
+```text
+Community_Access/
+├── Community_Access.aprx
+├── Community_Access.gdb/
+├── data_raw/
+├── data_working/
+├── outputs/
+├── maps/
+├── scripts/
+└── docs/README.md
+```
+
+## Six frequently used interface areas
+
+- **Ribbon:** organizes tasks under tabs such as Map, Insert, Analysis, Edit, and Share; contextual tabs appear when you select particular objects.
+- **Contents pane:** controls layer order, visibility, selection state, and symbology.
+- **Catalog pane/view:** browses projects, folders, databases, toolboxes, servers, and Portal content.
+- **Map view:** supports panning, zooming, selecting, editing, and inspecting features.
+- **Geoprocessing pane:** searches for tools, accepts parameters, configures environments, and displays messages.
+- **Attribute table:** each row usually represents one feature and each column a field; the Shape field stores geometry.
+
+### Your first hands-on exercise
+
+1. Start ArcGIS Pro and choose **New Project → Map**.
+2. Name the project `Community_Access` and choose a stable location with a reasonably short path.
+3. In Catalog, expand **Databases** and **Toolboxes** and confirm the default `.gdb` and `.atbx`.
+4. Use **Folders → Add Folder Connection** to connect `data_raw`.
+5. In Contents, right-click Map → **Properties → Coordinate Systems** and record the current map coordinate system.
+6. Save the project. Note that saving the project and saving or discarding edits are separate actions.
+
+<div class="callout tip">
+<span class="callout-title">Auditable names</span>
+Name outputs with “subject + operation + area/distance + version,” for example `Service_Buffer_1km_v01` and `Neighbourhood_Access_2026Q3`. Do not leave final results named `Buffer1` or `SpatialJoin3`.
+</div>
+
+# Fundamental models of spatial data
+
+## Four components
+
+Begin by decomposing any spatial dataset into four parts:
+
+1. **Geometry:** location and shape;
+2. **Attributes:** descriptive information such as name, type, population, and date;
+3. **Spatial reference:** how coordinates correspond to the Earth and what units they use;
+4. **Metadata:** who created the data, when and how, along with accuracy, limitations, licence, and update frequency.
+
+Missing any one of these limits interpretation. Many decimal places in a coordinate do not guarantee accurate collection, and a recent download date does not mean the underlying content is current.
+
+## Vectors, rasters, and tables
+
+| Data model | Structure | Suitable representations | Beginner reminder |
+|---|---|---|---|
+| Point | A single coordinate location | Facilities, sample sites, events | At larger map scales, a real object does not necessarily have “zero area” |
+| Line | An ordered sequence of vertices | Roads, rivers, pipelines | Length depends on the coordinate system; network connectivity requires additional rules |
+| Polygon | A closed boundary | Neighbourhoods, lakes, parcels | Boundary source and scale affect area and overlays |
+| Raster | A regular grid of cells | Elevation, imagery, temperature, land cover | Resolution, extent, NoData, and resampling method all matter |
+| Non-spatial table | Rows and fields | Population, surveys, lookup codes | Join through a unique key, or create event points from X/Y coordinates |
+
+Choose the model to serve the question: monitoring stations can be points, streams lines, administrative regions polygons, and continuous elevation usually a raster. The same real-world object may be represented differently at different scales.
+
+## Datasets, feature classes, and layers
+
+- **Feature:** one particular spatial object, such as a service location.
+- **Feature class:** a collection of features that share the same geometry type and field structure.
+- **Dataset:** a general data-storage object, which may be a feature class, raster, or table.
+- **Layer:** a reference to a data source that carries symbology, filters, labels, pop-ups, and visible ranges.
+- **Map:** a workspace that combines multiple layers in a particular order.
+- **Layout:** an arrangement of a map frame and page elements for screen, print, or PDF.
+
+## Common formats
+
+| Format | Strengths | Limitations / cautions | Recommended use |
+|---|---|---|---|
+| File geodatabase `.gdb` | ArcGIS-native; strong support for fields, long names, rules, and varied datasets | It is actually a folder; do not manually modify its internal files | First choice for routine editing and analysis outputs |
+| Shapefile `.shp` | Long-established and compatible across software | Composed of several files; limited field names, field types, and capabilities | Exchange with legacy systems, not as a complex primary store |
+| GeoPackage `.gpkg` | Open, single-file format that can contain multiple tables/layers | Some advanced geodatabase behaviours do not apply | Cross-platform exchange and lightweight projects |
+| CSV | Simple, universal, and easy to inspect | No native geometry or coordinate system; field types are easily misinterpreted | Tabular exchange or an X/Y point source |
+| GeoJSON | Web-friendly and human-readable text | Limited efficiency for large data and limited advanced rules | Web/developer exchange |
+| GeoTIFF | A raster that can carry georeferencing | Files may be large; inspect cells and NoData | Imagery and continuous surfaces |
+| Hosted feature layer | Accessible, queryable, and editable in browsers and multiple apps | Permissions, storage, dependencies, credits, and network access require management | Collaboration, web maps, and apps |
+
+Esri treats the geodatabase as ArcGIS's native structure for organizing and managing geographic data; a file geodatabase is a collection of files on disk. Do not use Finder or File Explorer to enter a `.gdb` and delete or rename its internal files; manage it through ArcGIS Catalog.
+
+## Six questions to ask when data arrives
+
+<ol class="checklist">
+  <li>Who is the source, and are they authoritative for this task?</li>
+  <li>What point or period in time does the content represent, and how often is it updated?</li>
+  <li>Do its spatial scale, resolution, and collection accuracy support the question?</li>
+  <li>What are the coordinate system, units, field definitions, and missing-value codes?</li>
+  <li>Is there a stable unique key, and are there duplicate records or one-to-many relationships?</li>
+  <li>What are the licence, attribution, privacy, and redistribution conditions?</li>
+</ol>
+
+# Coordinate systems and projections
+
+## Why “they appear to overlap” is not enough
+
+Spatial coordinates have meaning only in conjunction with a coordinate system. Latitude and longitude are commonly expressed in angular degrees; local projected coordinates are often expressed in metres or feet. ArcGIS Pro can project layers **on the fly** into the map coordinate system, so layers with different coordinate systems may overlap on screen. This does not guarantee that using the original coordinates directly for distance, area, or editing is appropriate.
+
+| Concept | Intuition | Where to inspect it |
+|---|---|---|
+| Geographic Coordinate System (GCS) | Locates positions on an ellipsoid/sphere with latitude and longitude, usually in degrees | Layer Properties → Source |
+| Projected Coordinate System (PCS) | Projects the Earth's surface onto a plane, usually in metres or feet | Map/Layer Properties |
+| Datum | Defines the shape of the Earth and the coordinate framework | Spatial Reference details |
+| Map coordinate system | Reference used for the current map display and some environments | Map Properties |
+| Geographic transformation | Converts between different datums/GCSs | Map/Project tool parameters |
+
+## Define Projection versus Project: know the difference
+
+| Tool | What it does | When to use it | What it does not do |
+|---|---|---|---|
+| **Define Projection** | Writes or corrects the proper coordinate-system definition for existing coordinate values | The definition is missing and you know the original coordinate system from a reliable source | Does not transform coordinate values or turn latitude/longitude “into” metres |
+| **Project** | Creates new data and transforms coordinates into a target coordinate system | Inputs need a common analysis coordinate system or a different projection | Cannot repair data that was incorrectly defined at the outset |
+
+<div class="callout pitfall">
+<span class="callout-title">Do not use Define Projection to “convert” data</span>
+If actual latitude/longitude data is incorrectly defined as a local metre-based projection, its coordinate values do not move; they are simply interpreted incorrectly, and the layer will often appear in an implausible location. First establish what the original coordinates mean. After defining them correctly, use Project to create a transformed copy.
+</div>
+
+## Beginner rules for choosing a coordinate system
+
+1. **Start with the purpose:** are you only browsing globally, or measuring local distances and areas?
+2. **Confirm the study extent:** a city, province, country, and the globe call for different projections.
+3. **Check units:** create a 1 km buffer in a projection suitable for the study area and measured in metres, or explicitly use an appropriate geodesic method.
+4. **Standardize analytical data:** project critical inputs to a consistent PCS suitable for the task, while preserving the source data.
+5. **Record the transformation:** document the geographic transformation used when crossing datums.
+6. **Spot-check known locations and distances:** do not rely solely on the absence of error messages.
+
+<div class="callout note">
+<span class="callout-title">Example for a Canadian project</span>
+Do not mechanically choose one projection simply because the data is in Canada. UTM zones suit many local tasks, but a map spanning several zones, a province, or the country may require a different projection. The study extent, desired distortion properties, and institutional standards should guide the choice together.
+</div>
+
+## Diagnosing layers that do not overlap in three steps
+
+1. Run **Zoom To Layer** for each layer and determine whether its extent values are plausible;
+2. Check whether the source coordinate system is Unknown or incorrectly defined, and whether X and Y are reversed;
+3. Compare datums, map units, and geographic transformations. Once verified, use Define Projection or Project instead of repeated guesswork.
+
+The official overview of [coordinate systems, map projections, and transformations](https://pro.arcgis.com/en/pro-app/latest/help/mapping/properties/coordinate-systems-and-projections.htm) emphasizes that on-the-fly projection is convenient for display, but you should consider transforming data to a common, task-appropriate coordinate system before formal analysis or editing.
+
+# Adding, inspecting, and organizing data
+
+## Four ways to add data
+
+- **Map → Add Data:** add from project connections, folders, geodatabases, or Portal;
+- **Catalog:** browse and drag data into the map, or first establish a Folder/Database Connection;
+- **ArcGIS Online / Living Atlas:** search organizational, authoritative, or public content;
+- **URL / service connection:** add an accessible web service or server connection.
+
+Do not begin analysis immediately after adding data. First complete an intake inspection:
+
+| Check | How | What to look for |
+|---|---|---|
+| Data source | Layer Properties → Source | Path/service, data type, coordinate system, extent |
+| Records and fields | Open Attribute Table | Row count, field types, aliases, units, NULLs |
+| Geometry | Zoom To Layer + spot checks | Location, distant outliers, empty geometry, boundaries |
+| Metadata | Catalog → Metadata / Item page | Source, date, licence, method, limitations |
+| Display state | Contents | Visibility, scale range, filters, active selections |
+| Project environments | Geoprocessing Environments | Output coordinate system, extent, mask, cell size |
+
+<div class="callout tip">
+<span class="callout-title">Record baseline counts first</span>
+Before analysis, record each input's feature count, number of nulls in key fields, number of unique keys, and spatial extent. Compare them after every tool run. Many errors do not cause a tool to fail; they produce an incorrect result that “looks reasonable.”
+</div>
+
+## Creating points from a CSV
+
+Suppose a table contains `longitude` and `latitude`:
+
+1. In spreadsheet software, first confirm that both are numeric fields with no degree symbols or mixed text.
+2. Use **XY Table To Point**.
+3. Select longitude/easting for X and latitude/northing for Y; do not guess based on column order.
+4. The input coordinate system must describe what these values mean now, not what you want the output to be.
+5. Write the output to the working geodatabase and inspect several known locations.
+6. If you need a local projection, use **Project** afterwards.
+
+Common problems include reversed X/Y, a missing minus sign, using 0 or 999 as a missing value, latitude/longitude fields read as text, and WGS 84 coordinates incorrectly assigned a projected coordinate system.
+
+## Exploring, selecting, and filtering
+
+- **Selection:** temporarily marks a set of records; many tools process only selected features.
+- **Definition Query:** excludes nonmatching records from a layer's working scope.
+- **Display Filter:** changes display by scale or expression, usually without changing the analysis scope.
+- **Export Features:** writes the needed records to a new dataset, creating an explicit, reproducible input.
+
+Example attribute queries:
+
+```sql
+POPULATION >= 10000 AND STATUS = 'Open'
+SERVICE_TYPE IN ('Clinic', 'Community Centre')
+LAST_UPDATE IS NOT NULL
+```
+
+Field delimiters and date syntax may vary by data source, so use the field/value builder in **Select By Attributes** where possible. Test NULL with `IS NULL`, not `= NULL`.
+
+## Establish the relationship before joining
+
+| Operation | Basis | Suitable question | Main risk |
+|---|---|---|---|
+| Attribute Join | Common key value | Attach a population table to neighbourhood codes | Different key types, whitespace, duplicate keys, one-to-many relationships |
+| Relate | Common key value while keeping tables separate | One parcel has multiple inspection records | Downstream tools may not automatically use the relate |
+| Spatial Join | Spatial relationship | How many facilities lie in each neighbourhood? | Target/join direction, boundary points, match rule |
+| Join Field | Key values, with fields written to the output | Permanently add stable one-to-one fields | Writing to the wrong data, field-name conflicts |
+
+After a join, check at minimum whether the original record count remains, how many records are unmatched, whether keys are unique, and whether totals have unexpectedly multiplied. If a neighbourhood code occurs three times in an external table, a one-to-one assumption may be invalid.
+
+# Map exploration, symbology, and labelling
+
+## Match symbols to the type of variable
+
+| Meaning of the data | Recommended starting point | Example | Avoid |
+|---|---|---|---|
+| Unordered categories | Unique Values + qualitative colours | Facility type | Using lightness to imply rank |
+| Ordered value/rate | Graduated Colors + sequential colours | Facilities per 10,000 people | Random categorical colours |
+| Values around a meaningful midpoint | Diverging colours | Positive/negative deviation from the mean | Forcing a red–blue scale without a midpoint |
+| Total quantity | Proportional/Graduated Symbols | Ridership per station | Letting large polygon areas dominate through fill colour |
+| Dense point exploration | Heat Map / clustering | Many event points | Treating heat as statistical significance |
+| Single-subject layer | Single Symbol | Study-area boundary | Unnecessary multicolour classification |
+
+## Counts, rates, and normalization
+
+A neighbourhood may have a high case count simply because it has a larger population. If the question concerns relative risk or burden, use an appropriate denominator, for example:
+
+$$
+\text{Facilities per 10,000 people} =
+\frac{\text{Number of facilities}}{\text{Population}} \times 10{,}000
+$$
+
+The numerator and denominator must refer to the same area, period, and population; rates in low-population areas may be highly unstable. If both totals and rates must be communicated, use side-by-side maps or show both in a pop-up rather than asking one map to carry conflicting tasks.
+
+## Classification and colour
+
+- **Natural Breaks (Jenks):** emphasizes groupings inherent in the data; break values change when the data changes.
+- **Quantile:** places roughly equal numbers of features in each class; areas with nearly equal values may fall into different classes.
+- **Equal Interval:** uses classes of equal width; skewed data may cluster heavily in one class.
+- **Manual Interval:** follows policy thresholds or a fixed, comparable standard; document the rationale.
+
+Start with 4–6 classes in most cases, then adjust to the task. Use a light-to-dark sequential scheme for ordered quantities, a diverging scheme around an explicit reference value, and distinguishable qualitative colours for categories. Check colour-vision accessibility, grayscale printing, and text/boundary contrast; do not rely on red versus green alone.
+
+## Labels, pop-ups, and scale ranges
+
+1. Label only the fields needed for identification; set priorities, conflict strategies, and visible scale ranges.
+2. Give fields readable aliases and units, such as “Population (2025),” rather than exposing `POP_25_FINAL2`.
+3. Order pop-up fields by importance and hide internal IDs, maintenance fields, and attributes that should not be public.
+4. A basemap should provide context without competing with the thematic layer; reduce saturation or transparency when necessary.
+5. Inspect the map at its final reading size, not only at high zoom on a large monitor.
+
+<div class="callout warning">
+<span class="callout-title">Map classification is an analytical decision</span>
+Changing break values, a denominator, the colour midpoint, or how missing values appear can change the pattern a reader perceives. The legend should state the variable, unit, period, and meaning of no data; for important decisions, also state the classification method.
+</div>
+
+# Queries, selections, and foundational geoprocessing
+
+## One question may require different operations
+
+| Question to answer | Operation | Form of the result |
+|---|---|---|
+| Which neighbourhoods have more than 10,000 residents? | Select By Attributes | Temporary selection set |
+| Show only open facilities on the map | Definition Query | Changed layer view |
+| Attach population by a matching neighbourhood code | Attribute Join | Temporary/permanent field extension |
+| Which facilities lie inside the study area? | Select By Location | Spatial selection set |
+| How many facilities are in each neighbourhood? | Spatial Join | New output with summary fields |
+| What area lies within 1 km of a facility? | Buffer | New polygon feature class |
+
+For **Select By Location**, read four elements carefully: target features, spatial relationship, selecting features, and selection type. Reversing target and selecting features changes the question; treatment of objects on a boundary also depends on the relationship definition.
+
+## General geoprocessing model
+
+> **Input → parameters → environment settings → output → messages/history → independent validation**
+
+| Tool | Core function | Output checks |
+|---|---|---|
+| Project | Transform the spatial reference | Coordinate system, extent, known points |
+| Buffer | Create an area within a specified distance | Units, planar/geodesic method, dissolve |
+| Clip | Cut data to a boundary | Edges, feature count, loss of attributes |
+| Dissolve | Merge geometry by field | Grouping field, multipart geometry, summary values |
+| Merge / Append | Combine data on the same theme | Schema, field mapping, duplicates |
+| Intersect | Retain common space among inputs | Output geometry, slivers, area |
+| Spatial Join | Transfer/summarize attributes through spatial relationships | Join_Count, match rule, unmatched records |
+| Near | Calculate the nearest object/distance | Distance units, no-match values, selection scope |
+
+Before running a tool, expand **Environments** and confirm that Output Coordinate System, Processing Extent, Mask, Cell Size, Snap Raster, and similar settings have not been inherited from an old project. A vector task may not use every environment, but a hidden old extent alone can unexpectedly produce an empty output.
+
+<div class="callout pitfall">
+<span class="callout-title">An active selection can silently reduce the input</span>
+ArcGIS geoprocessing tools generally process only the currently selected features in an input layer. Check the selection count in Contents or the attribute table before running a tool. To process all records, clear the selection or use the dataset directly instead of a layer carrying a selection.
+</div>
+
+# Complete exercise: identify public-service coverage gaps
+
+## Question, inputs, and limits
+
+The instructional question is:
+
+> Which fictional neighbourhood centres are more than 1 km from the nearest service location and therefore warrant further investigation?
+
+The assumed inputs are:
+
+- `Neighbourhoods_Raw`: neighbourhood polygons containing `NEIGH_ID`, `NAME`, and `POPULATION`;
+- `Services_Raw`: service-facility points containing `SERVICE_ID`, `TYPE`, and `STATUS`;
+- an optional study-area boundary, plus metadata describing the fields, dates, and sources.
+
+This instructional definition measures only planar straight-line distance. It excludes rivers, roads, slope, opening hours, capacity, cost, language, and mode of travel, so “outside the buffer” can serve only as a screening signal.
+
+## Illustrative data
+
+The following figure uses a fixed random seed and fictional coordinates solely to explain the workflow; the grid cells do not represent real neighbourhoods.
+
+```{r fictional-access-map, fig.cap="Fictional neighbourhoods, service locations, and 1 km straight-line buffers.", fig.alt="Twelve square neighbourhoods with three blue service points and circular one-kilometre buffers; uncovered neighbourhoods appear in orange."}
+old_par <- par(mar = c(3.2, 3.2, 1.2, 1.2), xaxs = "i", yaxs = "i")
+plot(NA, xlim = c(0, 4), ylim = c(0, 3), asp = 1,
+     xlab = "Fictional easting distance (km)", ylab = "Fictional northing distance (km)",
+     axes = TRUE)
+
+theta <- seq(0, 2 * pi, length.out = 240)
+for (j in seq_len(nrow(services))) {
+  polygon(services$x[j] + cos(theta), services$y[j] + sin(theta),
+          col = grDevices::adjustcolor("#56B4E9", alpha.f = 0.16),
+          border = "#2B6F9E", lty = 2)
+}
+
+for (i in seq_len(nrow(neighbourhoods))) {
+  fill <- if (neighbourhoods$within_1km[i]) "#D8EFEA" else "#F6C784"
+  rect(neighbourhoods$col[i], neighbourhoods$row[i],
+       neighbourhoods$col[i] + 1, neighbourhoods$row[i] + 1,
+       col = grDevices::adjustcolor(fill, alpha.f = 0.78),
+       border = "#5C7184", lwd = 1.2)
+  text(neighbourhoods$x[i], neighbourhoods$y[i],
+       labels = neighbourhoods$id[i], cex = 0.78, col = "#17324D")
+}
+points(services$x, services$y, pch = 21, cex = 1.45,
+       bg = "#0072B2", col = "white", lwd = 1.2)
+text(services$x, services$y - 0.16, services$id,
+     pos = 1, cex = 0.72, col = "#17324D")
+legend("topright",
+       legend = c("Within 1 km", "Potential gap", "Service facility", "1 km buffer"),
+       fill = c("#D8EFEA", "#F6C784", NA, NA),
+       border = c("#5C7184", "#5C7184", NA, NA),
+       pch = c(NA, NA, 21, NA),
+       pt.bg = c(NA, NA, "#0072B2", NA),
+       lty = c(NA, NA, NA, 2),
+       col = c(NA, NA, "#0072B2", "#2B6F9E"),
+       bg = "white", cex = 0.78)
+par(old_par)
+```
+
+The illustrative results can be audited as follows:
+
+```{r fictional-access-table, echo=FALSE}
+display_access <- data.frame(
+  Neighbourhood = neighbourhoods$id,
+  Population = format(neighbourhoods$population, big.mark = ","),
+  `Nearest facility distance (km)` = sprintf("%.2f", neighbourhoods$nearest_km),
+  `Initial screening status` = ifelse(neighbourhoods$within_1km, "Within 1 km", "Further investigation"),
+  check.names = FALSE
+)
+knitr::kable(display_access, align = c("l", "r", "r", "l"))
+```
+
+## ArcGIS Pro Workflow
+
+### Step 1: Import and Protect the Source Data
+
+- Keep the delivered files in `data_raw`; do not edit them directly.
+- Use **Export Features** or **Feature Class To Geodatabase** to write working copies to `Community_Access.gdb`.
+- Name the outputs `Neighbourhoods_Working` and `Services_Working`.
+- **Check:** Verify that record counts, fields, extent, geometry type, and metadata match the source data.
+
+### Step 2: Establish a Coordinate System Suitable for Distance Analysis
+
+- Inspect Source → Spatial Reference for both layers.
+- If the definition is missing but the original coordinate system is known, first use **Define Projection** correctly.
+- Use **Project** to create `Neighbourhoods_LocalPCS` and `Services_LocalPCS`.
+- **Check:** Confirm that both use the same coordinate system, the units are metres, known locations align, and the extents are reasonable.
+
+### Step 3: Select Valid Facilities
+
+- Use an attribute query such as `STATUS = 'Open'`.
+- Export the selection as `Services_Open` so that subsequent inputs are explicit.
+- **Check:** Confirm that the exported count equals the expected number of open facilities, and spot-check excluded records.
+
+### Step 4: Create 1 km Service Buffers
+
+- Open **Buffer**: Input = `Services_Open`, Distance = `1000 Meters`.
+- Decide whether to dissolve based on the question; dissolve all if the only question is whether an area is covered by any facility.
+- Output `Services_Buffer_1km`, and record the planar/geodesic setting.
+- **Check:** Spot-check the radius with the measurement tool and confirm that it is not 1 degree or 1 foot.
+
+### Step 5: Define the Location Used to Classify Each Neighbourhood
+
+This exercise simplifies the classification by using each neighbourhood's centroid or interior point. You can use **Feature To Point** to create `Neighbourhood_Centres`, deciding from the nature of the data whether each point must fall inside its polygon. A real analysis might instead calculate the proportion of area covered or the coverage of a population raster; those represent different estimands and must not be conflated.
+
+- **Check:** Confirm that every neighbourhood has one point and that no point falls in an anomalous location.
+
+### Step 6: Perform a Spatial Join
+
+- Target Features = `Neighbourhood_Centres`;
+- Join Features = `Services_Buffer_1km`;
+- Choose the appropriate intersection/containment relationship for Match Option;
+- Output `Neighbourhood_Access_1km`.
+
+`Join_Count > 0` means that the centroid falls within at least one buffer. If the buffers were not dissolved, Join_Count may also reflect the number of overlapping facility buffers; you must understand what it means under the current settings.
+
+### Step 7: Calculate the Classification and Map It
+
+- Add a text or short-integer field named `ACCESS_1KM`;
+- Use Calculate Field to populate it with “Within 1 km / Review”;
+- Use Unique Values to display the two classes, highlighting neighbourhoods requiring investigation in orange;
+- Configure pop-ups to show the neighbourhood name, population, nearest distance (if calculated), data date, and limitations.
+
+### Step 8: Validate Independently
+
+<ol class="checklist">
+  <li>Input neighbourhood count = output neighbourhood count; every neighbourhood still has a unique `NEIGH_ID`.</li>
+  <li>Count records where `Join_Count = 0`, and manually inspect at least three boundary cases.</li>
+  <li>Use Measure or Near to spot-check the neighbourhoods nearest to and farthest from a facility.</li>
+  <li>Confirm the map and data units, and read the tool's Messages and Warnings.</li>
+  <li>Clear selections, definition queries, and unintended environment settings, then verify that the results remain consistent.</li>
+  <li>Record input versions, projection, distance, tool parameters, time, and operator in the README.</li>
+</ol>
+
+<div class="callout warning">
+<span class="callout-title">A 1 km buffer is not the same as 1 km walking or service accessibility</span>
+A straight-line buffer ignores the street network, barriers, entrances, slope, travel mode, and time. If the decision truly concerns travel, use reliable network data and network analysis such as service areas or an OD cost matrix, and state the speed, restrictions, and time period. Being “near” a facility also does not mean that the facility is usable, affordable, or has available capacity.
+</div>
+
+# Editing and Data Integrity
+
+## Create Maintainable Data, Not Just a Few Shapes
+
+Before creating a feature class, determine:
+
+- the geometry type (point/line/polygon) and whether Z/M values are required;
+- a coordinate system that matches the project;
+- a stable unique identifier that does not depend on row order;
+- field names, aliases, types, lengths, units, NULL permissions, and default values;
+- which values should be constrained through domains, subtypes, or rules;
+- who maintains the data, how it will be audited, and how it will be backed up.
+
+The basic editing cycle is:
+
+> **Select the correct editable layer → Create/Modify Features → turn on Snapping → draw geometry → populate attributes → inspect → Save Edits or Discard Edits**
+
+Saving the project, creating geoprocessing outputs, and saving edits are separate states. Read the prompts carefully when closing a project; do not assume that saving the `.aprx` has saved uncommitted feature edits.
+
+## Snapping, Topology, and Attribute Rules
+
+- **Snapping:** Aligns new vertices with existing endpoints, edges, or intersections, reducing gaps and dangles.
+- **Domains:** Restrict a field to a list of permitted values or a numeric range; for example, facility status may be limited to Open/Closed/Planned.
+- **Subtypes:** Distinguish subclasses within a feature class and provide different default values or rules.
+- **Topology:** Encodes spatial-integrity rules such as “polygons must not overlap” or “lines must connect.”
+- **Attribute rules:** Automatically calculate, constrain, or validate attributes; these are an advanced data-governance capability.
+
+<div class="callout tip">
+<span class="callout-title">Safe editing practices</span>
+Keep an immutable copy of the source data; before major batch calculations, copy the working field or dataset; join using unique IDs rather than display names; after editing, check NULLs, duplicate IDs, geometry, and totals. A file geodatabase can be read by multiple clients, but concurrent editing of the same dataset is subject to locking restrictions.
+</div>
+
+# Layouts, Export, and Map QA
+
+## From Map View to Layout
+
+Map view is for working; a layout is for delivery. Use **Insert → New Layout** to select a page, then insert a **Map Frame**. Common elements include:
+
+| Element | Question it must answer |
+|---|---|
+| Title/subtitle | What area, measure, and time period does the map show? |
+| Legend | What does each symbol, class break, unit, and NoData value mean? |
+| Scale bar | Is it meaningful under the current projection and map frame, and are the units appropriate? |
+| Orientation information | Is a north arrow needed, and could it imply false precision? |
+| Source/date | Who provided the data, when was it produced, and which version is used? |
+| Author/organization | Who created the map and is responsible for updates? |
+| Methods/limitations | Do the buffer distance, classification, or key assumptions need explanation? |
+
+A legend should not mechanically list every layer, including basemaps and boundaries. Remove redundant titles and field names, and rewrite labels in the reader's language. Preserve white space and visual hierarchy so that the main finding is seen first.
+
+## Export Recommendations
+
+- **PDF:** Preferred for reports, printing, and vector text; check fonts, transparency, and cropping.
+- **PNG:** Suitable for web pages, slides, and fixed-pixel display; choose sufficient resolution for the final dimensions.
+- For print products, 300 dpi is a reasonable starting point for inspection, but the final requirement depends on the printing process and physical size.
+- After export, open the finished product and inspect it at 100% and at its final display size, not only on the ArcGIS Pro canvas.
+- Include the topic, scope, date/version in the file name, for example `Community_Access_1km_20260908.pdf`.
+
+### Prepublication Map Check
+
+<ol class="checklist">
+  <li>The title, legend, units, time period, and sources are consistent and correctly spelled.</li>
+  <li>The study area is complete, and no anomalously distant feature has forced the map to display at a tiny scale.</li>
+  <li>Colours, font sizes, and line widths remain distinguishable at the final size, in greyscale, and under common forms of colour-vision deficiency.</li>
+  <li>Counts are not mislabeled as rates; the classification method and treatment of NoData are not misleading.</li>
+  <li>The scale bar, projection, and orientation elements are appropriate for the map.</li>
+  <li>Sensitive locations, internal fields, personal information, and restricted data have been removed or aggregated.</li>
+  <li>At least one person unfamiliar with the production process has completed an independent read-through.</li>
+</ol>
+
+# ArcGIS Online and Web Sharing
+
+## Distinguish Items, Layers, Web Maps, and Apps
+
+| Web object | What it stores | Common dependencies |
+|---|---|---|
+| File item | An uploaded CSV, zipped shapefile, GeoJSON, or other file | Can serve as a publishing source, but is not necessarily an interactive layer itself |
+| Hosted feature layer | A service containing features and attributes hosted by ArcGIS Online | Permissions, editing settings, views, storage |
+| Feature layer view | A controlled view that references the same hosted data | Source hosted layer, filters/fields/permission settings |
+| Web map | Layer references, order, styling, pop-ups, bookmarks, and related configuration | Every layer and basemap in the map must be accessible |
+| Web app | An audience-facing interface and interactions | Usually depends on one or more web maps/layers |
+
+ArcGIS Online can add data from files or the web and can publish hosted layers. The same layer can be referenced by multiple maps with different display settings. Publishing a layer and saving a web map are two separate actions.
+
+## A Safe Web Map Workflow
+
+1. **Add content:** Upload data that is approved for publication, or share a web layer from ArcGIS Pro.
+2. **Complete item details:** Provide a summary, description, tags, source, update date, terms of use, extent, and thumbnail.
+3. **Configure the layer:** Set field aliases, styling, filters, pop-ups, refresh interval, editing, and export options.
+4. **Save the web map:** Give the map a clear name, summary, and folder, then test layer order and visibility ranges.
+5. **Choose the audience:** Owner, Group, Organization, or Everyone (public).
+6. **Review sharing:** Ensure that the map and every dependent layer are accessible to the same intended audience.
+7. **Test as a non-owner or in private browsing:** Open the map with an account that has the target permissions or in a private browser window.
+8. **Identify an owner:** Record who maintains the data, when it should be retired, and where feedback should be sent.
+
+<div class="callout pitfall">
+<span class="callout-title">Sharing a web map does not automatically fix every layer's permissions</span>
+The fact that you can see a map as its owner does not mean that colleagues or the public can access its dependent layers. If a layer is not shared with the same audience, recipients may see a blank map or a sign-in request. Address every ArcGIS Online Review sharing warning.
+</div>
+
+<div class="callout warning">
+<span class="callout-title">Public editing is especially risky</span>
+Before publishing, review the hosted feature layer's editing, export, sync, attachments, and editor tracking settings. Do not expose precise home addresses, patient/client locations, internal operational fields, access tokens, or combinations of data that could enable re-identification. When different audiences need different access, favour hosted feature layer views, minimal fields, and read-only permissions.
+</div>
+
+See Esri's official guidance on the [ArcGIS Online map-making workflow](https://doc.arcgis.com/en/arcgis-online/reference/get-started-with-maps.htm), [content-sharing workflow](https://doc.arcgis.com/en/arcgis-online/get-started/get-started-with-sharing.htm), and [hosted layers](https://doc.arcgis.com/en/arcgis-online/manage-data/hosted-web-layers.htm). Your organization's roles, privileges, and security policies take precedence over generic steps.
+
+# Introduction to Reproducible Workflows and Automation
+
+## Turn One Successful Run into a Repeatable Process
+
+At a minimum, a reproducible record should include:
+
+- the source, version/date, licence, and validation information for the input data;
+- the source and target coordinate systems and any geographic transformation;
+- each tool's inputs, parameters, environments, outputs, and messages;
+- the run date, software version, extensions, and operator;
+- output counts, unmatched counts, spot-check results, and known limitations;
+- final maps, web-item URLs/IDs, sharing scope, and maintenance responsibility.
+
+ArcGIS Pro's **Geoprocessing History** stores executed tools and their parameters. You can reopen them, save them as models, or copy their Python commands. History is important evidence, but it does not replace the problem definition, input versions, or result validation.
+
+## ModelBuilder, ArcPy, and Arcade
+
+| Tool | Suitable uses | A good starting point for beginners |
+|---|---|---|
+| ModelBuilder | Visually chaining tools, parameterization, and batch iteration | Connect a validated Project → Buffer → Spatial Join workflow |
+| ArcPy | Python-based batch processing, data management, analysis, and map automation | Copy commands from History, then replace implicit values with explicit variables and outputs |
+| ArcGIS Notebooks | Combining explanation and Python in a managed ArcGIS environment | Use a small dataset to validate permissions and the runtime environment |
+| Arcade | Expressions for labels, pop-ups, symbology, and rules | Create a display field; do not confuse Arcade with ArcPy |
+
+The following ArcPy code illustrates structure only. It must be adapted to real paths, licences, and fields and run in the **Python environment provided by ArcGIS Pro**:
+
+```python
+from pathlib import Path
+import arcpy
+
+arcpy.env.overwriteOutput = False
+
+project_home = Path(r"C:\GIS\Community_Access")
+gdb = project_home / "Community_Access.gdb"
+
+services_raw = str(gdb / "Services_Working")
+neighbourhoods_raw = str(gdb / "Neighbourhoods_Working")
+services_projected = str(gdb / "Services_LocalPCS")
+neighbourhoods_projected = str(gdb / "Neighbourhoods_LocalPCS")
+service_buffer = str(gdb / "Services_Buffer_1km")
+access_output = str(gdb / "Neighbourhood_Access_1km")
+
+# Replace the placeholder with a real SpatialReference/WKID appropriate for the study area.
+target_crs = arcpy.SpatialReference(00000)
+
+arcpy.management.Project(services_raw, services_projected, target_crs)
+arcpy.management.Project(neighbourhoods_raw, neighbourhoods_projected, target_crs)
+
+arcpy.analysis.Buffer(
+    in_features=services_projected,
+    out_feature_class=service_buffer,
+    buffer_distance_or_field="1000 Meters",
+    dissolve_option="ALL",
+    method="PLANAR",
+)
+
+arcpy.analysis.SpatialJoin(
+    target_features=neighbourhoods_projected,
+    join_features=service_buffer,
+    out_feature_class=access_output,
+    join_operation="JOIN_ONE_TO_ONE",
+    join_type="KEEP_ALL",
+    match_option="INTERSECT",
+)
+
+print("Output features:", arcpy.management.GetCount(access_output)[0])
+```
+
+Do not run the placeholder WKID `00000` as written. A production script should also check that inputs exist, specify any transformation explicitly, handle exceptions, log its work, and assert expected results. The default `overwriteOutput = False` reduces accidental overwrites; if overwriting is required, enable it only for confirmed derived outputs.
+
+<details>
+<summary>A more robust ArcPy error-reporting skeleton</summary>
+
+```python
+try:
+    # Run validated geoprocessing steps here.
+    pass
+except arcpy.ExecuteError:
+    print(arcpy.GetMessages(2))
+    raise
+except Exception as exc:
+    print(f"Python error: {exc}")
+    raise
+```
+
+</details>
+
+# Troubleshooting and Quality Control
+
+## Trace Symptoms Back to Data, Coordinates, and State
+
+| Symptom | Common causes | First checks |
+|---|---|---|
+| Broken layer data source | File moved, drive letter/path changed, insufficient permissions | Layer Properties → Source; Repair Data Source |
+| Blank map | View not zoomed, layer turned off, visibility range, filter, transparency/symbol | Zoom To Layer; Contents; Definition Query |
+| Layers far apart | Incorrect coordinate-system definition, X/Y reversed, datum/unit error | Extent values, Source, known control points |
+| Buffer extremely large or small | Degrees or feet treated as metres, unsuitable parameter/projection | Layer units, Distance, planar/geodesic method |
+| Empty tool output | Active selection, environment extent/mask, no spatial relationship | Selection count, Environments, input extent |
+| Row count surges after a join | Duplicate join keys, one-to-many relationship, whitespace/type issue | Key frequencies, cardinality, unmatched table |
+| Output already exists or is locked | Duplicate output name, table still open, access by another process | Unique naming, close tables/projects, inspect locks |
+| Tool unavailable or disabled | Incompatible layer type, licence/extension, portal permissions | Tool help, Licensing, organizational role |
+| Others cannot see the web map | Dependent layer not shared, sign-in restriction, link points to the item page | Review sharing; test with the target identity |
+| Online analysis fails | Credits, permissions, input limits, unavailable service | Estimated credits, role, messages, status |
+
+Recommended sequence:
+
+> **Check the data source → Zoom To Layer → inspect selections/filters → inspect coordinate systems and extents → inspect fields/NULLs → inspect environments → read messages → check licences/permissions → rerun on a small sample → validate the output**
+
+## Minimum QA for Every Output
+
+1. **Counts:** Why are the input and output feature counts the same or different?
+2. **Schema:** Were key IDs, field types, units, and NULLs preserved?
+3. **Spatial properties:** Are the extent, coordinate system, geometry type, and empty/invalid geometries reasonable?
+4. **Quantities:** Did areas, lengths, total population, or Join_Count change in an impossible way?
+5. **Boundary cases:** Inspect at least one matched, one unmatched, and one borderline case.
+6. **Visual check:** Overlay the source data for inspection, but do not substitute visual review for numerical checks.
+7. **Messages:** Save warnings; successful tool execution does not guarantee a correct conclusion.
+8. **Traceability:** Record inputs, parameters, time, version, output name, and limitations.
+
+# Responsibility, Privacy, and Spatial Inference
+
+## Maps Can Amplify Risk
+
+Spatial data can recombine dispersed attributes into identifiable locations. Precise home addresses, patient/client points, rare events, shelters, endangered species, or critical infrastructure may be re-identified or misused even when names are absent.
+
+Minimum principles include:
+
+- collect and share only the spatial precision and fields necessary for the task;
+- use aggregation, obfuscation, masking, controlled views, or access controls according to risk;
+- establish suppression rules for small counts and rare combinations;
+- separate internal analysis layers from public presentation layers;
+- require review by the data owner and privacy/security leads before public release;
+- document attribution and terms of use for basemaps, data, and imagery.
+
+## Four Common Inference Pitfalls
+
+| Pitfall | Meaning | Response |
+|---|---|---|
+| Ecological fallacy | An area-level average relationship is not an individual-level relationship | State the unit of analysis and do not extrapolate to individuals |
+| MAUP | Changing zoning boundaries or scale can change the statistical pattern | Compare reasonable scales and report sensitivity to boundaries |
+| Spatial autocorrelation | Nearby observations are often not independent | Use spatial statistics rather than ordinary tests when appropriate |
+| Modifiable classification | Class breaks and colours change the pattern readers perceive | State the method in advance and compare sensitivity across alternatives |
+
+“Nearby,” “overlapping,” and “hotspot” are descriptions; none automatically implies causality. Conclusions should be proportionate to data quality, study design, and analytical scale.
+
+# Exercises and Answers
+
+## Concept Exercises
+
+1. Which data models are most appropriate for road centrelines, neighbourhood boundaries, and elevation?
+2. Is removing a layer from a map the same as deleting a feature class? Why or why not?
+3. If a CSV contains `longitude = -113.49` and `latitude = 53.54`, which should be X and which should be Y?
+4. A dataset's coordinate system displays as Unknown, but the provider confirms that its coordinates are WGS 84 longitude and latitude. Should you first use Define Projection or Project?
+5. When comparing disease burden among neighbourhoods with different populations, should you map case counts or rates? What else should you inspect?
+6. Which type of join should you use to attach a population table to neighbourhood polygons by `NEIGH_ID`? Which should you use to count facilities within each neighbourhood?
+7. A Buffer output suddenly contains only 5 records even though the input has 300. What should you check first?
+8. You can see a web map, but a colleague sees only the basemap. What was most likely overlooked?
+9. Explain why a 1 km straight-line buffer cannot answer whether a destination is reachable within a 10-minute walk.
+10. List at least six pieces of QA evidence spanning source data through the published map.
+
+<details>
+<summary>View answers to the concept exercises</summary>
+
+1. Roads are usually lines, neighbourhood boundaries are polygons, and elevation is usually a continuous raster.
+2. Usually not. A layer is a data reference plus display configuration; removing it from a map does not delete the source feature class. Data-management actions such as Delete can remove data.
+3. X = longitude and Y = latitude. Also set the input coordinate system to the GCS that truly describes those values, and spot-check locations.
+4. First use Define Projection to assign the known, correct definition. If the analysis requires another projection, then use Project to create a transformed copy.
+5. If the question concerns relative risk or burden, use consistently defined rates while retaining counts for context. Check denominators, time periods, instability caused by small numbers, missing data, and structural differences such as age distributions.
+6. Use an attribute join/Join Field for the shared `NEIGH_ID`; use Spatial Join to count facilities by location.
+7. Check whether the input layer has an active selection of 5 records; also inspect its definition query and environment settings.
+8. The web map's dependent operational layer was not shared with the colleague's audience, or it requires sign-in privileges the colleague does not have.
+9. A buffer measures only geometric straight-line distance. It does not know about roads, barriers, entrances, slope, speed, or time period; walking time requires a network model and corresponding assumptions.
+10. Examples include input/output counts, unique keys and unmatched counts, coordinate systems and units, extents, tool messages, key parameters, boundary-case spot checks, privacy/permission checks, and metadata/version records.
+
+</details>
+
+## Integrated Challenge
+
+Design an “underserved-area screening” project for a type of public facility familiar to you. Submit:
+
+- a one-sentence spatial question that specifies the subject, area, time period, and operational definition of “coverage”;
+- an input inventory with sources/licences/dates/coordinate systems;
+- a tool-flow diagram from source data to output;
+- a table of parameters and environments;
+- a layout map or web map;
+- a QA record covering count reconciliation, boundary-case checks, privacy, and limitations.
+
+The grading emphasis is not the map's colours, but whether the question, data, coordinates, tools, and conclusions are consistent and auditable.
+
+# Quick Reference
+
+## Common Chinese–English Terms
+
+| Chinese | English | Plain-language meaning |
+|---|---|---|
+| 要素 | Feature | A spatial object with geometry and attributes |
+| 要素类 | Feature class | A collection of features with the same geometry type and schema |
+| 图层 | Layer | A display, filtering, and interaction reference to a data source |
+| 地理数据库 | Geodatabase | ArcGIS's native container for organizing spatial data and behaviour |
+| 空间参考 | Spatial reference | The coordinate system, units, and related definitions |
+| 动态投影 | On-the-fly projection | A temporary transformation for display that does not rewrite source data |
+| 地理处理 | Geoprocessing | The use of tools to process spatial or related data and produce results |
+| 属性连接 | Attribute join | Appending fields by a common key |
+| 空间连接 | Spatial join | Appending or summarizing fields by a spatial relationship |
+| 托管要素图层 | Hosted feature layer | A queryable feature service hosted by Online/Enterprise |
+| Web 地图 | Web map | A web configuration of layer references, styles, pop-ups, and related settings |
+| 项目项 | Item | A content object in an ArcGIS portal with details, an owner, and sharing settings |
+
+## From Question to Tool
+
+| Question | Starting tool | Key checks |
+|---|---|---|
+| Transform a coordinate system | Project | Correct source definition, suitable target, transformation |
+| Find an area within a given distance | Buffer | Units, method, dissolve setting, input selection |
+| Retain content within a study area | Clip | Clip boundary, output fragments, attributes |
+| Merge boundaries of the same class | Dissolve | Grouping field, multipart setting, summaries |
+| Find spatial overlap | Select By Location / Intersect | Relationship direction, output geometry |
+| Summarize by location | Spatial Join | Target/join roles, cardinality, Join_Count |
+| Find the nearest object | Near / Generate Near Table | Units, search radius, tied nearest features |
+| Join a table by a common ID | Add Join / Join Field | Types, uniqueness, unmatched records |
+
+## Final Workflow Card
+
+<ol class="checklist">
+  <li>Define the spatial question, subject, scope, time period, and decision in one sentence.</li>
+  <li>Preserve source data; record its source, date, licence, scale, and metadata.</li>
+  <li>Inspect records, fields, unique keys, NULLs, geometry, extents, and outliers.</li>
+  <li>Confirm the source coordinate system; choose a suitable projection, units, and transformation for analysis.</li>
+  <li>Browse and spot-check before choosing symbology, queries, joins, and tools.</li>
+  <li>For every tool, specify inputs, parameters, environments, output names, and expected changes.</li>
+  <li>Reconcile counts, schemas, spatial extents, units, and boundary cases.</li>
+  <li>Use a title, legend, sources, time period, methods, and limitations to communicate with the map.</li>
+  <li>Inspect the export at its final size and have a second reader review it.</li>
+  <li>Share with least privilege and test every dependency using the intended audience's identity.</li>
+  <li>Save History/models/scripts, the README, and maintenance responsibilities.</li>
+  <li>Answer only the original question; do not inflate association, buffering, or clustering into causation.</li>
+</ol>
+
+# Next Steps and Official Resources
+
+Recommended learning sequence:
+
+> **Map navigation → data inspection → coordinate systems → symbology → queries and joins → geoprocessing → layouts → web sharing → ModelBuilder / ArcPy**
+
+After mastering the fundamentals, continue as needed into raster and remote sensing, network analysis, geocoding, 3D scenes, spatial statistics, mobile data collection, Dashboards, or StoryMaps. Extensions and online analysis may require additional licences, privileges, or credits.
+
+Official resources (pages may change as products are updated):
+
+- [ArcGIS Pro documentation home](https://pro.arcgis.com/)
+- [ArcGIS Pro quick-start tutorials](https://pro.arcgis.com/en/pro-app/latest/get-started/pro-quickstart-tutorials.htm)
+- [Geoprocessing basics](https://pro.arcgis.com/en/pro-app/latest/help/analysis/geoprocessing/basics/what-is-geoprocessing-.htm)
+- [Introduction to geodatabases](https://pro.arcgis.com/en/pro-app/latest/help/data/geodatabases/overview/what-is-a-geodatabase-.htm)
+- [Coordinate systems, projections, and transformations](https://pro.arcgis.com/en/pro-app/latest/help/mapping/properties/coordinate-systems-and-projections.htm)
+- [Introduction to ArcPy](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/what-is-arcpy-.htm)
+- [Get started with data in ArcGIS Online](https://doc.arcgis.com/en/arcgis-online/get-started/get-started-with-data.htm)
+- [Get started with maps in ArcGIS Online](https://doc.arcgis.com/en/arcgis-online/reference/get-started-with-maps.htm)
+- [Get started with sharing in ArcGIS Online](https://doc.arcgis.com/en/arcgis-online/get-started/get-started-with-sharing.htm)
+
+<div class="callout note">
+<span class="callout-title">Version check</span>
+This tutorial was built on `r format(Sys.Date(), '%Y-%m-%d')` and uses concepts that are relatively stable across minor releases of ArcGIS Pro 3.x and ArcGIS Online. Before following the steps, consult the online help for your installed version and verify your organization's licences, roles, extensions, and security policies.
+</div>
+
+```{r session-info, echo=FALSE}
+cat("R Markdown build environment\n")
+cat("R version:", R.version.string, "\n")
+cat("knitr:", as.character(utils::packageVersion("knitr")), "\n")
+cat("rmarkdown:", as.character(utils::packageVersion("rmarkdown")), "\n")
+```
+
+<div class="footer-note">
+All neighbourhoods, facilities, distances, and population values on this page are instructional illustrations generated with a fixed seed; they do not correspond to real places or individuals. This tutorial is intended to teach a workflow and is not a substitute for local data standards, privacy review, professional spatial analysis, or operational decision-making.
+</div>
