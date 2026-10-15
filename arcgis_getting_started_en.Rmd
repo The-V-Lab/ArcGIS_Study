@@ -67,10 +67,8 @@ neighbourhoods$nearest_km <- apply(distance_matrix, 1, min)
 neighbourhoods$within_1km <- neighbourhoods$nearest_km <= 1
 ```
 
-<nav class="language-switch" aria-label="Language selection">
+<nav class="language-switch" aria-label="Guide navigation">
   <span class="language-home">Getting Started with ArcGIS</span>
-  <a href="arcgis_getting_started.html" lang="zh-CN">中文</a>
-  <span class="active" aria-current="page">English</span>
 </nav>
 
 <div class="module-bar">
@@ -909,22 +907,22 @@ The grading emphasis is not the map's colours, but whether the question, data, c
 
 # Quick Reference
 
-## Common Chinese–English Terms
+## Common ArcGIS Terms
 
-| Chinese | English | Plain-language meaning |
-|---|---|---|
-| 要素 | Feature | A spatial object with geometry and attributes |
-| 要素类 | Feature class | A collection of features with the same geometry type and schema |
-| 图层 | Layer | A display, filtering, and interaction reference to a data source |
-| 地理数据库 | Geodatabase | ArcGIS's native container for organizing spatial data and behaviour |
-| 空间参考 | Spatial reference | The coordinate system, units, and related definitions |
-| 动态投影 | On-the-fly projection | A temporary transformation for display that does not rewrite source data |
-| 地理处理 | Geoprocessing | The use of tools to process spatial or related data and produce results |
-| 属性连接 | Attribute join | Appending fields by a common key |
-| 空间连接 | Spatial join | Appending or summarizing fields by a spatial relationship |
-| 托管要素图层 | Hosted feature layer | A queryable feature service hosted by Online/Enterprise |
-| Web 地图 | Web map | A web configuration of layer references, styles, pop-ups, and related settings |
-| 项目项 | Item | A content object in an ArcGIS portal with details, an owner, and sharing settings |
+| Term | Plain-language meaning |
+|---|---|
+| Feature | A spatial object with geometry and attributes |
+| Feature class | A collection of features with the same geometry type and schema |
+| Layer | A display, filtering, and interaction reference to a data source |
+| Geodatabase | ArcGIS's native container for organizing spatial data and behaviour |
+| Spatial reference | The coordinate system, units, and related definitions |
+| On-the-fly projection | A temporary transformation for display that does not rewrite source data |
+| Geoprocessing | The use of tools to process spatial or related data and produce results |
+| Attribute join | Appending fields by a common key |
+| Spatial join | Appending or summarizing fields by a spatial relationship |
+| Hosted feature layer | A queryable feature service hosted by Online/Enterprise |
+| Web map | A web configuration of layer references, styles, pop-ups, and related settings |
+| Item | A content object in an ArcGIS portal with details, an owner, and sharing settings |
 
 ## From Question to Tool
 
