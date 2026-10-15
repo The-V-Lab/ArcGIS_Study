@@ -125,7 +125,7 @@ ArcGIS_Study/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/LaboratoireV/ArcGIS_Study.git
+git clone https://github.com/The-V-Lab/ArcGIS_Study.git
 cd ArcGIS_Study
 ```
 
