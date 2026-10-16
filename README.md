@@ -2,13 +2,17 @@
 
 A structured ArcGIS learning module for GIS beginners. It starts from spatial thinking, data models and coordinate systems, then covers ArcGIS Pro project management, cartography, queries and joins, basic geoprocessing, editing, layout and export, sharing in ArcGIS Online, reproducible workflows and responsible spatial practice.
 
+## Live site
+
+Visit the [ArcGIS Learning Hub](https://the-v-lab.github.io/ArcGIS_Study/) to start the course in your browser, or go straight to the [guide](https://the-v-lab.github.io/ArcGIS_Study/arcgis_getting_started_en.html).
+
 ## Course
 
 | R Markdown source | Rendered HTML |
 |---|---|
 | [arcgis_getting_started_en.Rmd](./arcgis_getting_started_en.Rmd) | [arcgis_getting_started_en.html](./arcgis_getting_started_en.html) |
 
-The HTML file is a self-contained page: clone or download the repository and open it directly in a browser. GitHub's ordinary file preview does not run HTML as a course website.
+The HTML file is a self-contained page, published through GitHub Pages. You can also clone or download the repository and open it directly in a browser.
 
 ## Goals
 
@@ -103,6 +107,10 @@ The example covers **straight-line buffers** only. It does not model roads, barr
 ```text
 ArcGIS_Study/
 ├── README.md
+├── index.html
+├── hub.css
+├── og.png
+├── .nojekyll
 ├── arcgis_getting_started.Rmd
 ├── arcgis_getting_started_en.Rmd
 ├── arcgis_getting_started_en.html
@@ -114,11 +122,15 @@ ArcGIS_Study/
 | File | Purpose |
 |---|---|
 | `README.md` | Project overview, usage, build and maintenance notes |
+| `index.html` | Learning hub home page: learning path, guide card, routes and key concepts |
+| `hub.css` | Styles for the learning hub, shared with the other The V Lab learning sites |
+| `og.png` | Social preview image for the learning hub |
+| `.nojekyll` | Lets GitHub Pages publish the static files as they are |
 | `arcgis_getting_started_en.Rmd` | Course source |
 | `arcgis_getting_started_en.html` | Self-contained course page |
 | `arcgis_getting_started.Rmd` | Source of an earlier, unpublished edition |
 | `styles.css` | Colours, layout, callouts, tables, responsive and print styles |
-| `includes/vlab-brand.html` | The V Lab · ArcGIS brand component at the top of the page |
+| `includes/vlab-brand.html` | The V Lab · ArcGIS brand component at the top of the page; it links back to the hub |
 
 ## Quick start
 

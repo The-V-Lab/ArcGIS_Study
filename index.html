@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="An ArcGIS learning hub from The V Lab: spatial thinking, data models, coordinate systems, ArcGIS Pro workflows, symbology, geoprocessing, layouts, web sharing and responsible spatial practice." name="description"/>
+<meta content="The V Lab" name="author"/>
+<meta content="#12383b" name="theme-color"/>
+<meta content="light" name="color-scheme"/>
+<link href="https://the-v-lab.github.io/ArcGIS_Study/" rel="canonical"/>
+<link href="hub.css" rel="stylesheet"/>
+<meta content="website" property="og:type"/>
+<meta content="The V Lab" property="og:site_name"/>
+<meta content="ArcGIS Learning Hub | The V Lab" property="og:title"/>
+<meta content="An ArcGIS learning hub from The V Lab: spatial thinking, data models, coordinate systems, ArcGIS Pro workflows, symbology, geoprocessing, layouts, web sharing and responsible spatial practice." property="og:description"/>
+<meta content="https://the-v-lab.github.io/ArcGIS_Study/" property="og:url"/>
+<meta content="https://the-v-lab.github.io/ArcGIS_Study/og.png" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="The V Lab ArcGIS Learning Hub" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="ArcGIS Learning Hub | The V Lab" name="twitter:title"/>
+<meta content="An ArcGIS learning hub from The V Lab: spatial thinking, data models, coordinate systems, ArcGIS Pro workflows, symbology, geoprocessing, layouts, web sharing and responsible spatial practice." name="twitter:description"/>
+<meta content="https://the-v-lab.github.io/ArcGIS_Study/og.png" name="twitter:image"/>
+<title>ArcGIS Learning Hub | The V Lab</title>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to learning content</a>
+<div class="header-wrap">
+<header class="site-header shell">
+<a aria-current="page" aria-label="The V Lab ArcGIS Learning Hub home" class="brand" href="index.html">
+<span aria-hidden="true" class="brand-mark">V</span>
+<span>The V Lab</span>
+</a>
+<nav aria-label="Main navigation" class="main-nav">
+<a href="#learning-path">Learning path</a>
+<a href="#guides">Guide</a>
+<a href="#choose-a-track">Choose a path</a>
+<a href="#concepts">Key concepts</a>
+</nav>
+<a aria-label="View the ArcGIS_Study repository on GitHub" class="repo-link" href="https://github.com/The-V-Lab/ArcGIS_Study">GitHub <span aria-hidden="true">↗</span></a>
+</header>
+</div>
+<main id="main-content" tabindex="-1">
+<section aria-labelledby="page-title" class="hero shell">
+<div class="hero-copy-wrap">
+<p class="eyebrow">GIS guide</p>
+<h1 id="page-title">Think spatially, then map with care.</h1>
+<p class="hero-copy">A beginner's route through ArcGIS Pro: how spatial data is modelled, why coordinate systems matter, how to symbolize honestly, and how to run a complete analysis, from importing data to a checked layout and a shared web map.</p>
+<div aria-label="Start the guide" class="hero-actions">
+<a class="button button-primary" href="arcgis_getting_started_en.html">Read the guide <span aria-hidden="true" class="arrow">→</span></a>
+</div>
+<ul aria-label="Guide highlights" class="hero-notes">
+<li>Self-paced</li>
+<li>ArcGIS Pro workflows</li>
+<li>Complete exercise</li>
+</ul>
+</div>
+<aside aria-label="A geoprocessing workflow for finding service coverage gaps" class="document-preview">
+<div aria-hidden="true" class="preview-toolbar">
+<span></span><span></span><span></span>
+<strong>coverage_gaps</strong>
+</div>
+<div class="preview-body">
+<p class="preview-label">ONE QUESTION, A CHAIN OF TOOLS</p>
+<pre aria-label="Example geoprocessing workflow"><code><span class="code-heading"># Which neighbourhoods lie outside</span>
+<span class="code-heading"># every 1 km service area?</span>
+
+<span class="code-key">Project</span>       <span class="code-muted">→</span> projected CRS in metres
+<span class="code-key">Select</span>        <span class="code-muted">→</span> facilities that are open
+<span class="code-key">Buffer</span>        <span class="code-muted">→</span> <span class="code-value">1 km</span> service areas
+<span class="code-key">Feature To Point</span> <span class="code-muted">→</span> neighbourhood centres
+<span class="code-key">Spatial Join</span>  <span class="code-muted">→</span> centre within a buffer?
+<span class="code-key">Calculate</span>     <span class="code-muted">→</span> <span class="code-value">covered</span> / <span class="code-value">gap</span></code></pre>
+<ol aria-label="Workflow" class="render-route">
+<li><span>01</span><strong>Prepare</strong><small>Data + coordinates</small></li>
+<li><span>02</span><strong>Analyze</strong><small>Geoprocessing</small></li>
+<li><span>03</span><strong>Share</strong><small>Layout + web map</small></li>
+</ol>
+</div>
+</aside>
+</section>
+<section aria-labelledby="path-title" class="section shell" id="learning-path">
+<div class="section-intro">
+<div>
+<p class="section-kicker">Learning path</p>
+<h2 id="path-title">From spatial question to trustworthy map.</h2>
+</div>
+<p>Follow four connected stages, then return to any topic when your project needs it.</p>
+</div>
+<ol class="path-grid">
+<li class="path-step">
+<span class="step-number">01</span>
+<p class="step-action">Model</p>
+<h3>Understand spatial data</h3>
+<p>Tell vectors, rasters and tables apart, and know the difference between a dataset, a feature class and a layer that only points to it.</p>
+<a class="step-link" href="arcgis_getting_started_en.html#fundamental-models-of-spatial-data">Explore data models <span aria-hidden="true">→</span></a>
+</li>
+<li class="path-step">
+<span class="step-number">02</span>
+<p class="step-action">Locate</p>
+<h3>Get coordinates right</h3>
+<p>Separate Define Projection from Project, choose a coordinate system for the measurement you need, and diagnose layers that do not line up.</p>
+<a class="step-link" href="arcgis_getting_started_en.html#coordinate-systems-and-projections">Coordinate systems <span aria-hidden="true">→</span></a>
+</li>
+<li class="path-step">
+<span class="step-number">03</span>
+<p class="step-action">Map</p>
+<h3>Symbolize honestly</h3>
+<p>Match symbols to the type of variable, normalize counts into rates, and choose classes and colours that do not mislead.</p>
+<a class="step-link" href="arcgis_getting_started_en.html#map-exploration-symbology-and-labelling">Symbology and labels <span aria-hidden="true">→</span></a>
+</li>
+<li class="path-step">
+<span class="step-number">04</span>
+<p class="step-action">Analyze</p>
+<h3>Run a complete workflow</h3>
+<p>Project, select, buffer and spatially join to find neighbourhoods outside a 1 km service area, then validate the result independently.</p>
+<a class="step-link" href="arcgis_getting_started_en.html#complete-exercise-identify-public-service-coverage-gaps">Start the exercise <span aria-hidden="true">→</span></a>
+</li>
+</ol>
+</section>
+<section aria-labelledby="guides-title" class="section guide-section" id="guides">
+<div class="shell">
+<div class="section-intro">
+<div>
+<p class="section-kicker">The guide</p>
+<h2 id="guides-title">One complete guide, from first project to shared map.</h2>
+</div>
+<p>One practical sequence through ArcGIS Pro, with a complete exercise, troubleshooting, exercises with answers and a quick reference.</p>
+</div>
+<div class="guide-grid">
+<article class="guide-card guide-card-en">
+<div class="guide-topline">
+<span aria-hidden="true" class="guide-language">GIS</span>
+<div class="guide-meta">
+<span>Complete guide</span>
+<span>Self-paced</span>
+</div>
+</div>
+<p class="guide-overline">Complete guide</p>
+<h3>Getting Started with ArcGIS</h3>
+<p class="guide-description">From spatial thinking, data and coordinate systems to cartography, spatial analysis, web sharing and responsible use of location data.</p>
+<ul aria-label="Guide topics" class="topic-list">
+<li>Spatial data models</li>
+<li>Coordinate systems</li>
+<li>Joins</li>
+<li>Symbology</li>
+<li>Geoprocessing</li>
+<li>Layouts</li>
+<li>ArcGIS Online</li>
+</ul>
+<a class="guide-link" href="arcgis_getting_started_en.html">Open the guide <span aria-hidden="true">→</span></a>
+</article>
+</div>
+</div>
+</section>
+<section aria-labelledby="tracks-title" class="section shell" id="choose-a-track">
+<div class="section-intro">
+<div>
+<p class="section-kicker">Choose a path</p>
+<h2 id="tracks-title">Start with the route that fits your work.</h2>
+</div>
+<p>You do not need to read every section in order. Choose a route, solve the task in front of you, then return for more depth.</p>
+</div>
+<div class="track-grid">
+<article class="track-card">
+<span class="track-label">Beginner</span>
+<h3>Find your way around ArcGIS</h3>
+<p>Learn what GIS is for, how an ArcGIS Pro project is organized, and how to add and inspect your first data.</p>
+<ol class="track-route">
+<li><a href="arcgis_getting_started_en.html#the-gis-and-arcgis-landscape">The GIS landscape</a></li><li><a href="arcgis_getting_started_en.html#arcgis-pro-projects-and-interface">Projects and interface</a></li><li><a href="arcgis_getting_started_en.html#adding-inspecting-and-organizing-data">Adding data</a></li>
+</ol>
+</article>
+<article class="track-card">
+<span class="track-label">Analyst</span>
+<h3>Answer a spatial question</h3>
+<p>Get the coordinate system right, choose the right geoprocessing tools and work through a complete analysis.</p>
+<ol class="track-route">
+<li><a href="arcgis_getting_started_en.html#coordinate-systems-and-projections">Coordinate systems</a></li><li><a href="arcgis_getting_started_en.html#queries-selections-and-foundational-geoprocessing">Geoprocessing</a></li><li><a href="arcgis_getting_started_en.html#complete-exercise-identify-public-service-coverage-gaps">Complete exercise</a></li>
+</ol>
+</article>
+<article class="track-card">
+<span class="track-label">Map publisher</span>
+<h3>Share maps people can trust</h3>
+<p>Build a checked layout, publish a web map safely and make the workflow repeatable.</p>
+<ol class="track-route">
+<li><a href="arcgis_getting_started_en.html#layouts-export-and-map-qa">Layouts and QA</a></li><li><a href="arcgis_getting_started_en.html#arcgis-online-and-web-sharing">Web sharing</a></li><li><a href="arcgis_getting_started_en.html#introduction-to-reproducible-workflows-and-automation">Reproducible workflows</a></li>
+</ol>
+</article>
+</div>
+</section>
+<section aria-labelledby="concepts-title" class="section shell concepts-wrap" id="concepts">
+<div class="concepts-panel">
+<div class="concepts-header">
+<div>
+<p class="section-kicker section-kicker-light">Key concepts</p>
+<h2 id="concepts-title">Four steps from raw data to a map that holds up.</h2>
+</div>
+<p>Most GIS mistakes happen between these steps. Knowing what each one is for makes them easier to catch.</p>
+</div>
+<ol aria-label="ArcGIS analysis workflow" class="concept-flow">
+<li>
+<span class="concept-number">01</span>
+<strong>Data</strong>
+<small>Vectors, rasters, tables</small>
+</li>
+<li>
+<span class="concept-number">02</span>
+<strong>Coordinates</strong>
+<small>Defined, then projected</small>
+</li>
+<li>
+<span class="concept-number">03</span>
+<strong>Geoprocessing</strong>
+<small>Tools that answer the question</small>
+</li>
+<li>
+<span class="concept-number">04</span>
+<strong>Map</strong>
+<small>Layout or web map</small>
+</li>
+</ol>
+<div class="concept-grid">
+<article class="concept-card">
+<span aria-hidden="true" class="concept-symbol">◫</span>
+<h3>A layer is not the data</h3>
+<p>A layer is a view of a dataset with its own symbols and filters. Editing the layer's look never changes the source, but editing features does.</p>
+</article>
+<article class="concept-card">
+<span aria-hidden="true" class="concept-symbol">⊕</span>
+<h3>Define versus Project</h3>
+<p>Define Projection only labels data with the coordinate system it already uses. Project transforms coordinates into a new one.</p>
+</article>
+<article class="concept-card">
+<span aria-hidden="true" class="concept-symbol">%</span>
+<h3>Normalize before you map</h3>
+<p>Counts mostly show where people live. Rates and densities show whether something is unusually common there.</p>
+</article>
+<article class="concept-card">
+<span aria-hidden="true" class="concept-symbol">✓</span>
+<h3>Validate independently</h3>
+<p>Check a result by a different route, such as a manual sample or a second tool, before anyone relies on the map.</p>
+</article>
+</div>
+</div>
+</section>
+</main>
+<footer class="site-footer shell">
+<div>
+<a aria-label="The V Lab ArcGIS Learning Hub home" class="footer-brand" href="index.html">
+<span aria-hidden="true" class="brand-mark brand-mark-small">V</span>
+<span>The V Lab</span>
+</a>
+<p>Practical learning for spatial analysis.</p>
+</div>
+<nav aria-label="Footer navigation" class="footer-links">
+<a href="arcgis_getting_started_en.html">Guide</a>
+<a href="https://vthelab.com/learn.html">All guides on vthelab.com</a>
+<a href="https://github.com/The-V-Lab/ArcGIS_Study">GitHub repository</a>
+</nav>
+</footer>
+</body>
+</html>
